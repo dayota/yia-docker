@@ -61,6 +61,7 @@ def _normalize_runtime(application: Mapping[str, Any]) -> RuntimeConfig:
             type="php",
             version=version,
             package_manager=None,
+            xdebug=bool(runtime.get("xdebug", False)),
         )
 
     version = str(runtime["node"])
@@ -69,6 +70,7 @@ def _normalize_runtime(application: Mapping[str, Any]) -> RuntimeConfig:
         type="node",
         version=version,
         package_manager=cast(PackageManager, runtime.get("package_manager", "pnpm")),
+        xdebug=None,
     )
 
 

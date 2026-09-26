@@ -25,9 +25,9 @@ Cette sous-spécification définit le modèle d'exécution Docker de Yia V1.
 - Les données persistantes ne sont jamais supprimées implicitement.
 
 La phase 5 fournit la topologie Compose et référence des tags d'images Yia
-déterministes. La phase 6 fournit l'image et la configuration Apache. Le
-contenu des images et configurations PHP, Node et PostgreSQL relève des phases
-suivantes.
+déterministes. La phase 6 fournit l'image et la configuration Apache. La phase
+7 fournit les images et configurations PHP-FPM. Le contenu des images et
+configurations Node et PostgreSQL relève des phases suivantes.
 
 ---
 
@@ -109,8 +109,8 @@ la première application.
 Pour une application PHP exposée, Apache monte sa source en lecture seule au
 même chemin `/workspace/<application>` que PHP-FPM. Le `DocumentRoot` est le
 `public_directory` normalisé. Les fichiers `*.php` sont transmis avec
-`SetHandler` à `proxy:fcgi://php-<version>:9000`; les fichiers statiques sont
-servis directement par Apache.
+`SetHandler` au port du pool associé sur `php-<version>` ; les fichiers
+statiques sont servis directement par Apache.
 
 Les fichiers `.htaccess` sont autorisés dans le répertoire public afin de
 prendre en charge les front controllers Laravel et Symfony. La connexion
@@ -152,21 +152,45 @@ Le service Compose logique est `php-<version>`. Chaque source applicative est
 montée dans `/workspace/<application>` et son volume de dépendances dans
 `/workspace/<application>/vendor`.
 
+Chaque application dispose de son propre pool FPM dans le container mutualisé.
+Les pools sont triés par identifiant applicatif et écoutent, dans cet ordre,
+sur les ports privés `9000`, `9001`, etc. Apache calcule le même port depuis le
+modèle normalisé. Aucun port FPM n'est publié vers l'hôte.
+
 ### 5.2. Images
 
-Yia construit ses propres images PHP.
+Yia construit ses propres images PHP. Les versions V1 supportées et leurs bases
+officielles épinglées sont :
 
-Chaque runtime versionné possède son Dockerfile.
+| Runtime | Image de base |
+|---|---|
+| PHP 8.2 | `php:8.2.33-fpm-alpine3.24` |
+| PHP 8.4 | `php:8.4.25-fpm-alpine3.24` |
 
-Les extensions PHP nécessaires sont définies dans ce Dockerfile et non dans `yia.yml`.
+Chaque runtime possède son Dockerfile sous `docker/php/<version>/`. Le contexte
+de build commun est `docker/php/`.
+
+Les extensions installées sont fixes en V1 : `bcmath`, `intl`, `mbstring`,
+`opcache`, `pcntl`, `pdo_mysql`, `pdo_pgsql`, `xdebug` et `zip`. Elles ne sont
+pas configurables dans `yia.yml`. Xdebug est installé avec le seul mode
+`debug`, mais le démarrage d'une session est désactivé globalement.
 
 ### 5.3. Composer
 
-Composer est installé dans les images PHP Yia.
+Composer `2.10.3` est copié depuis son image officielle dans toutes les images
+PHP Yia. `git`, OpenSSH et `unzip` sont disponibles pour résoudre les
+dépendances locales ou privées.
 
 ### 5.4. UID/GID
 
-Les images et containers PHP doivent fonctionner avec les UID/GID correspondant à l'utilisateur hôte lorsque cela est nécessaire à l'écriture dans les sources montées.
+Le service PHP reçoit `${YIA_UID:-1000}` et `${YIA_GID:-1000}`. Son entrypoint,
+initialement root, aligne l'utilisateur interne `yia` sur ces identifiants et
+attribue uniquement les racines des volumes `vendor` à cet utilisateur. Il ne
+modifie jamais les propriétaires des sources applicatives.
+
+Le master FPM conserve les privilèges nécessaires au démarrage puis exécute les
+workers des pools avec l'utilisateur `yia`. Les autres commandes du container
+sont exécutées comme `yia` par l'entrypoint.
 
 ### 5.5. Dépendances Composer
 
@@ -175,15 +199,22 @@ Les répertoires `vendor/` sont stockés dans des volumes Docker nommés lorsque
 La topologie V1 utilise systématiquement un volume logique
 `php-<application>-vendor` par application PHP.
 
+La configuration générée est écrite dans
+`.yia-runtime/php/<version>/fpm-pools.conf` puis montée en lecture seule dans
+`/usr/local/etc/php-fpm.d/yia-pools.conf`. L'image contient un pool de repli
+pour rester validable isolément ; le montage généré le remplace dans Compose.
+
 ### 5.6. Xdebug
 
-Xdebug est configurable par application.
+Xdebug est configurable par application avec `runtime.xdebug`, désactivé par
+défaut. Chaque pool fixe `xdebug.start_with_request` à `trigger` ou `no`, ce qui
+permet des choix différents dans un même container PHP tout en respectant le
+fait que `xdebug.mode` est choisi au démarrage du master FPM partagé.
 
-Le mécanisme d'activation doit permettre à plusieurs applications partageant le même runtime PHP de déclarer des besoins différents.
-
-L'implémentation doit donc éviter de considérer Xdebug comme une simple propriété globale du container partagé.
-
-La solution technique précise peut être définie pendant l'implémentation, mais doit respecter ce contrat fonctionnel.
+Le démarrage du débogage utilise un trigger, cible
+`host.docker.internal:9003` et ne découvre pas automatiquement une adresse
+client depuis la requête HTTP. Compose ajoute l'alias `host-gateway` nécessaire
+sur Linux.
 
 ---
 
@@ -345,9 +376,11 @@ yia/php:<version-php>-<version-yia>
 yia/node:<version-node>-<version-yia>
 ```
 
-Les runtimes PHP et Node utilisent l'utilisateur Compose
-`${YIA_UID:-1000}:${YIA_GID:-1000}`. Ces références sont générées telles
-quelles et ne recopient aucune valeur locale dans `.yia-runtime/`.
+Le runtime Node utilise l'utilisateur Compose
+`${YIA_UID:-1000}:${YIA_GID:-1000}`. Le runtime PHP transmet séparément
+`${YIA_UID:-1000}` et `${YIA_GID:-1000}` à son entrypoint afin de préparer ses
+volumes avant de démarrer ses workers non-root. Ces références sont générées
+telles quelles et ne recopient aucune valeur locale dans `.yia-runtime/`.
 
 L'image Apache active uniquement les modules supplémentaires nécessaires en
 V1 : `headers`, `proxy`, `proxy_fcgi`, `proxy_http` et `rewrite`. Le forward
@@ -446,4 +479,7 @@ Le modèle Docker V1 est respecté lorsque :
 - HTTP uniquement est utilisé en V1 ;
 - l'image Apache et sa configuration passent `httpd -t` ;
 - les hostnames PHP atteignent PHP-FPM via FastCGI ;
+- chaque configuration PHP générée passe `php-fpm -t` ;
+- Composer et les extensions PHP documentées sont disponibles ;
+- deux applications d'un même runtime peuvent choisir Xdebug indépendamment ;
 - les hostnames Node atteignent leur service via HTTP et supportent Upgrade.

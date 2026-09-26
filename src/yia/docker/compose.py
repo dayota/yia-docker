@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from typing import Iterable
 
 import yaml
@@ -11,6 +10,13 @@ from yia.generators import GeneratedFile, GenerationContext
 from yia.versions import YIA_VERSION
 
 from .apache import APACHE_VHOSTS_CONTAINER_PATH, APACHE_VHOSTS_PATH
+from .php import (
+    PHP_BUILD_CONTEXT,
+    PHP_FPM_BASE_PORT,
+    PHP_FPM_CONFIG_CONTAINER_PATH,
+    php_applications_by_runtime,
+    php_configuration_path,
+)
 
 
 COMPOSE_PATH = "compose/compose.yaml"
@@ -129,19 +135,18 @@ def _apache_service(config: NormalizedConfig) -> dict[str, object] | None:
 def _php_services(
     config: NormalizedConfig,
 ) -> tuple[dict[str, dict[str, object]], set[str]]:
-    applications_by_runtime: dict[str, list[ApplicationConfig]] = defaultdict(list)
-    for application in config.applications:
-        if application.type == "php":
-            applications_by_runtime[application.runtime.name].append(application)
-
     services: dict[str, dict[str, object]] = {}
     volumes: set[str] = set()
-    for runtime_name in sorted(applications_by_runtime):
-        applications = sorted(
-            applications_by_runtime[runtime_name],
-            key=lambda application: application.name,
-        )
-        mounts: list[dict[str, str]] = []
+    for runtime_name, applications in php_applications_by_runtime(config).items():
+        version = applications[0].runtime.version
+        mounts: list[dict[str, object]] = [
+            {
+                "type": "bind",
+                "source": f"../{php_configuration_path(version)}",
+                "target": PHP_FPM_CONFIG_CONTAINER_PATH,
+                "read_only": True,
+            }
+        ]
         for application in applications:
             volume_name = _php_volume_name(application)
             volumes.add(volume_name)
@@ -157,8 +162,20 @@ def _php_services(
             )
 
         services[runtime_name] = {
-            "image": f"yia/php:{applications[0].runtime.version}-{YIA_VERSION}",
-            "user": RUNTIME_USER,
+            "image": f"yia/php:{version}-{YIA_VERSION}",
+            "build": {
+                "context": PHP_BUILD_CONTEXT,
+                "dockerfile": f"{version}/Dockerfile",
+            },
+            "environment": {
+                "YIA_GID": "${YIA_GID:-1000}",
+                "YIA_UID": "${YIA_UID:-1000}",
+            },
+            "extra_hosts": ["host.docker.internal:host-gateway"],
+            "expose": [
+                str(PHP_FPM_BASE_PORT + index)
+                for index in range(len(applications))
+            ],
             "volumes": mounts,
             "networks": [NETWORK_NAME],
             "healthcheck": _healthcheck(["CMD", "php-fpm", "-t"]),

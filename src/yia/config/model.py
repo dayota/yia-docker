@@ -40,6 +40,7 @@ class RuntimeConfig:
     type: ApplicationType
     version: str
     package_manager: PackageManager | None
+    xdebug: bool | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +94,7 @@ class ApplicationConfig:
                 "type": self.runtime.type,
                 "version": self.runtime.version,
                 "package_manager": self.runtime.package_manager,
+                "xdebug": self.runtime.xdebug,
             },
             "framework": framework,
             "web": web,

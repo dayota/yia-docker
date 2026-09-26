@@ -126,8 +126,10 @@
           "properties": {
             "php": {
               "type": "string",
-              "minLength": 1,
-              "pattern": "^[0-9][0-9A-Za-z._-]*$"
+              "enum": [
+                "8.2",
+                "8.4"
+              ]
             },
             "node": {
               "type": "string",
@@ -141,6 +143,10 @@
                 "yarn"
               ],
               "default": "pnpm"
+            },
+            "xdebug": {
+              "type": "boolean",
+              "default": false
             }
           },
           "minProperties": 1
@@ -262,8 +268,17 @@
                   "node"
                 ],
                 "not": {
-                  "required": [
-                    "php"
+                  "anyOf": [
+                    {
+                      "required": [
+                        "php"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "xdebug"
+                      ]
+                    }
                   ]
                 }
               },

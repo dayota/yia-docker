@@ -34,6 +34,14 @@ where = ["src"]
   "docker/apache/Dockerfile",
   "docker/apache/yia-health.conf"
 ]
+"share/yia/docker/php" = [
+  "docker/php/default-pool.conf",
+  "docker/php/entrypoint.sh",
+  "docker/php/global.conf",
+  "docker/php/xdebug.ini"
+]
+"share/yia/docker/php/8.2" = ["docker/php/8.2/Dockerfile"]
+"share/yia/docker/php/8.4" = ["docker/php/8.4/Dockerfile"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -58,6 +58,7 @@ def test_full_configuration_is_normalized() -> None:
     assert api.runtime.type == "php"
     assert api.runtime.version == "8.4"
     assert api.runtime.package_manager is None
+    assert api.runtime.xdebug is False
     assert api.framework is not None
     assert api.framework.version == "13"
     assert api.web is not None
@@ -69,6 +70,7 @@ def test_full_configuration_is_normalized() -> None:
     frontend = config.application("frontend")
     assert frontend.runtime.name == "node-24"
     assert frontend.runtime.package_manager == "pnpm"
+    assert frontend.runtime.xdebug is None
     assert frontend.web is not None
     assert frontend.web.port == 3000
     assert frontend.web.public_directory is None
@@ -180,6 +182,35 @@ def test_hash_changes_when_effective_configuration_changes(tmp_path: Path) -> No
         changed,
         tmp_path,
     ).configuration_hash
+
+
+def test_php_xdebug_default_and_explicit_value_are_normalized(
+    tmp_path: Path,
+) -> None:
+    for name in ("disabled", "enabled"):
+        (tmp_path / "apps" / name).mkdir(parents=True)
+    config = {
+        "version": 1,
+        "project": {"name": "debug"},
+        "environment": {"domain": "debug.localhost"},
+        "applications": {
+            "disabled": {
+                "type": "php",
+                "path": "apps/disabled",
+                "runtime": {"php": "8.4"},
+            },
+            "enabled": {
+                "type": "php",
+                "path": "apps/enabled",
+                "runtime": {"php": "8.4", "xdebug": True},
+            },
+        },
+    }
+
+    model = _normalize(config, tmp_path)
+
+    assert model.application("disabled").runtime.xdebug is False
+    assert model.application("enabled").runtime.xdebug is True
 
 
 def test_normalized_model_is_immutable(tmp_path: Path) -> None:

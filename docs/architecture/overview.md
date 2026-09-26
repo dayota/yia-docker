@@ -77,3 +77,11 @@ l'unique port HTTP publié. Un générateur produit les vhosts depuis le modèle
 normalisé : fichiers PHP vers le runtime FPM mutualisé, requêtes Node vers le
 service applicatif isolé. Les sources PHP exposées et la configuration générée
 sont montées en lecture seule dans Apache.
+
+## Runtimes PHP-FPM
+
+Une image est construite pour chaque version PHP supportée et un seul service
+est créé par version utilisée. Dans ce service, un pool FPM généré par
+application isole son port, son répertoire de travail et son activation
+Xdebug. Les sources sont des bind mounts tandis que chaque `vendor/` utilise
+un volume nommé dédié.

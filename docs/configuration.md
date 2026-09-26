@@ -246,8 +246,26 @@ runtime:
 
 Yia ne fournit pas de version PHP par défaut.
 
-La version commence par un chiffre et ne contient que des caractères
-compatibles avec un tag Docker (`0-9`, `A-Z`, `a-z`, `.`, `_`, `-`).
+Les versions supportées en V1 sont :
+
+```text
+8.2
+8.4
+```
+
+La valeur doit correspondre exactement à l'une de ces versions mineures.
+
+Xdebug est désactivé par défaut et peut être activé pour une application sans
+l'activer pour les autres applications du même runtime :
+
+```yaml
+runtime:
+  php: "8.4"
+  xdebug: true
+```
+
+`xdebug` est un booléen réservé aux applications PHP. Sa valeur effective par
+défaut est `false`.
 
 ### 10.2. Frameworks PHP
 
@@ -429,6 +447,7 @@ En V1, le modèle normalisé applique les règles suivantes :
 - un PostgreSQL absent ou désactivé est absent du modèle effectif ;
 - `postgres.expose` absent vaut `false` ;
 - `runtime.package_manager` absent pour Node vaut `pnpm` ;
+- `runtime.xdebug` absent pour PHP vaut `false` ;
 - le project name Compose est égal à `project.name` ;
 - les noms logiques de runtime sont `php-<version>` et `node-<version>` ;
 - le nom logique du service PostgreSQL est `postgres`.

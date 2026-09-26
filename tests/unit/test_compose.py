@@ -134,10 +134,26 @@ def test_full_topology_contains_expected_services_volumes_and_ports() -> None:
 
     php = compose["services"]["php-8.4"]
     assert php["image"] == "yia/php:8.4-0.1.0"
-    assert php["user"] == "${YIA_UID:-1000}:${YIA_GID:-1000}"
-    assert php["volumes"][0]["source"].endswith("/tests/projects/full/apps/api")
-    assert php["volumes"][0]["target"] == "/workspace/api"
-    assert php["volumes"][1] == {
+    assert php["build"] == {
+        "context": "../../.yia/docker/php",
+        "dockerfile": "8.4/Dockerfile",
+    }
+    assert php["environment"] == {
+        "YIA_GID": "${YIA_GID:-1000}",
+        "YIA_UID": "${YIA_UID:-1000}",
+    }
+    assert php["extra_hosts"] == ["host.docker.internal:host-gateway"]
+    assert php["expose"] == ["9000"]
+    assert "user" not in php
+    assert php["volumes"][0] == {
+        "type": "bind",
+        "source": "../php/8.4/fpm-pools.conf",
+        "target": "/usr/local/etc/php-fpm.d/yia-pools.conf",
+        "read_only": True,
+    }
+    assert php["volumes"][1]["source"].endswith("/tests/projects/full/apps/api")
+    assert php["volumes"][1]["target"] == "/workspace/api"
+    assert php["volumes"][2] == {
         "type": "volume",
         "source": "php-api-vendor",
         "target": "/workspace/api/vendor",
@@ -213,7 +229,9 @@ def test_php_runtime_is_shared_by_version(tmp_path: Path) -> None:
 
     assert list(compose["services"]) == ["php-8.4"]
     assert list(compose["volumes"]) == ["php-api-vendor", "php-worker-vendor"]
-    assert len(compose["services"]["php-8.4"]["volumes"]) == 4
+    php = compose["services"]["php-8.4"]
+    assert len(php["volumes"]) == 5
+    assert php["expose"] == ["9000", "9001"]
 
 
 def test_node_processes_are_isolated_while_the_image_is_shared(tmp_path: Path) -> None:

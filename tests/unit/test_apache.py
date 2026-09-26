@@ -152,13 +152,18 @@ def test_default_docker_generators_are_complete_and_idempotent(
 
     assert tuple(generator.name for generator in generators) == (
         "apache-vhosts",
+        "php-fpm",
         "docker-compose",
     )
     assert first.changed is True
     assert second.changed is False
     assert (tmp_path / ".yia-runtime/apache/vhosts.conf").is_file()
     assert (tmp_path / ".yia-runtime/compose/compose.yaml").is_file()
-    assert second.manifest.generators == ("apache-vhosts", "docker-compose")
+    assert second.manifest.generators == (
+        "apache-vhosts",
+        "docker-compose",
+        "php-fpm",
+    )
 
 
 def test_apache_image_uses_pinned_official_base_and_generated_include() -> None:
