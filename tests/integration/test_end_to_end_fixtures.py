@@ -41,7 +41,7 @@ VALID_CASES = (
     ),
     FixtureCase(
         "php-node",
-        ("apache", "node-24-frontend", "php-8.4", "postgres"),
+        ("apache", "node-24-frontend", "php-8.4"),
         (
             ("api.php-node.localhost", "Yia PHP fixture: api"),
             ("php-node.localhost", "Yia Node fixture: frontend"),
@@ -62,6 +62,23 @@ VALID_CASES = (
         (
             ("api.full.localhost", "Yia PHP fixture: api"),
             ("full.localhost", "Yia Node fixture: frontend"),
+        ),
+    ),
+    FixtureCase(
+        "monorepo",
+        (
+            "apache",
+            "node-22-admin",
+            "node-24-frontend",
+            "php-8.2",
+            "php-8.4",
+            "postgres",
+        ),
+        (
+            ("api.monorepo.localhost", "Yia PHP fixture: api"),
+            ("legacy.monorepo.localhost", "Yia PHP fixture: legacy"),
+            ("monorepo.localhost", "Yia Node fixture: frontend"),
+            ("admin.monorepo.localhost", "Yia Node fixture: admin"),
         ),
     ),
 )

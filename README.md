@@ -57,6 +57,16 @@ make update
 La commande `validate` est sans effet de bord. Une configuration invalide
 retourne le code de sortie `2` et le code stable `YIA_CONFIG_INVALID`.
 
+## Usage
+
+L'[index des cas d'usage](./docs/usages/index.md) regroupe les scénarios pratiques
+de Yia. Chaque cas retenu doit être illustré par un exemple reproductible
+complet : arborescence, `yia.yml`, variables attendues, commandes Make,
+résultat observable, vérifications et procédure de nettoyage.
+
+La [gestion éditoriale du guide](./docs/usages-management.md) décrit le format,
+le catalogue, les règles de rédaction et le suivi de cohérence.
+
 Ce répertoire contient les spécifications normatives de Yia.
 
 L'objectif est de conserver une **spécification racine courte et transversale** et de déléguer les contrats détaillés à des sous-spécifications par domaine.  
@@ -71,6 +81,10 @@ Yia/
 ├── README.md
 └── docs/
     ├── yia-spec.md
+    ├── usages-management.md
+    ├── usages/
+    │   ├── index.md
+    │   └── u01.md … u54.md, t01.md … t07.md
     ├── documentation.md
     ├── configuration.md
     ├── state.md
@@ -106,6 +120,8 @@ README.md
     │
     └── docs/
         ├── yia-spec.md              ← spécification racine
+        ├── usages-management.md     ← gestion éditoriale non normative
+        ├── usages/                  ← index et cas pratiques non normatifs
         ├── documentation.md         ← système documentaire / agents
         ├── configuration.md         ← contrat yia.yml
         ├── state.md                 ← état interne reconstructible

@@ -4,10 +4,6 @@ project:
 
 environment:
   domain: php-node.localhost
-services:
-  postgres:
-    enabled: true
-    version: "18"
 applications:
   api:
     type: php
@@ -16,6 +12,7 @@ applications:
       php: "8.4"
     framework:
       name: laravel
+      version: 13
     web:
       hostname: api.php-node.localhost
       public_directory: public
@@ -26,6 +23,7 @@ applications:
       node: "24"
     framework:
       name: nuxt
+      version: 4
     web:
       hostname: php-node.localhost
       port: 3000
