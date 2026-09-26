@@ -811,17 +811,12 @@ Un reset avec perte de données doit utiliser une option explicitement destructi
 
 ### 14.21. `make destroy`
 
-Commande destructive explicite.
+Supprime explicitement les containers et réseaux du projet ainsi que
+`.yia-runtime/`. Les volumes persistants et `.yia-data/` sont conservés.
 
-Peut supprimer :
-
-- containers ;
-- réseaux ;
-- volumes persistants Yia ;
-- `.yia-runtime/` ;
-- `.yia-data/` si explicitement inclus dans le contrat.
-
-Doit afficher clairement ce qui sera détruit avant l'opération.
+La suppression des volumes relève exclusivement de `make destroy-data`, avec
+confirmation explicite. `make destroy` doit afficher clairement ce qui sera
+supprimé et ce qui sera conservé avant l'opération.
 
 ### 14.22. `make version`
 

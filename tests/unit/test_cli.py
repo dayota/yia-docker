@@ -20,6 +20,43 @@ def test_version_command(capsys) -> None:
     assert captured.err == ""
 
 
+def test_version_json_reports_commit_schemas_and_detected_tools(
+    monkeypatch,
+    capsys,
+) -> None:
+    monkeypatch.setattr("yia.cli._git_commit", lambda: "abc1234")
+    monkeypatch.setattr(
+        "yia.cli.tool_versions",
+        lambda: {
+            "python": "3.14.4",
+            "git": "git version 2.51.0",
+            "make": "GNU Make 4.4.1",
+            "docker": None,
+            "docker-compose": None,
+        },
+    )
+
+    exit_code = main(["version", "--json"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(captured.out) == {
+        "documentation_schema": 1,
+        "git_commit": "abc1234",
+        "schema_version": 1,
+        "status": "ok",
+        "tools": {
+            "docker": None,
+            "docker-compose": None,
+            "git": "git version 2.51.0",
+            "make": "GNU Make 4.4.1",
+            "python": "3.14.4",
+        },
+        "yia_version": "0.1.0",
+    }
+    assert captured.err == ""
+
+
 def test_validate_json_success_contains_only_json_on_stdout(
     monkeypatch,
     capsys,

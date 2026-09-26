@@ -66,8 +66,8 @@ PostgreSQL lorsqu'il est activé et les volumes nommés de dépendances ou de
 données. Les noms logiques sont stables et Docker Compose applique le préfixe
 du projet aux ressources physiques.
 
-La phase Compose ne démarre aucun container. Les images et configurations de
-runtime sont fournies par les phases spécialisées suivantes. Le contrat
+La génération Compose ne démarre aucun container. Les images et configurations
+de runtime sont fournies par les composants Docker spécialisés. Le contrat
 détaillé est défini dans [`docs/docker.md`](../docker.md).
 
 ## Point d'entrée Apache

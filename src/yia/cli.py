@@ -32,7 +32,12 @@ from yia.project import (
     runtime_project_identity,
 )
 from yia.resources import schema_path
-from yia.system import APT_PACKAGES, install_dependencies, installation_checks
+from yia.system import (
+    APT_PACKAGES,
+    install_dependencies,
+    installation_checks,
+    tool_versions,
+)
 from yia.updating import update_project
 from yia.versions import CONFIGURATION_SCHEMA_VERSION, DOCUMENTATION_SCHEMA_VERSION
 
@@ -116,12 +121,14 @@ def _git_commit() -> str | None:
 
 
 def cmd_version(args: argparse.Namespace) -> int:
+    tools = tool_versions()
     payload = {
         "status": "ok",
         "yia_version": __version__,
         "git_commit": _git_commit(),
         "schema_version": SCHEMA_VERSION,
         "documentation_schema": DOCUMENTATION_SCHEMA_VERSION,
+        "tools": tools,
     }
     if args.json:
         emit(payload, as_json=True)
@@ -130,6 +137,9 @@ def cmd_version(args: argparse.Namespace) -> int:
         print(f"commit {payload['git_commit'] or 'indisponible'}")
         print(f"schema {SCHEMA_VERSION}")
         print(f"documentation schema {DOCUMENTATION_SCHEMA_VERSION}")
+        print("outils détectés")
+        for name, version in tools.items():
+            print(f"- {name}: {version or 'indisponible'}")
     return 0
 
 

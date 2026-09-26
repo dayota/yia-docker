@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import shutil
@@ -16,6 +17,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests/projects"
 RUN_DOCKER_INTEGRATION = os.environ.get("YIA_RUN_DOCKER_INTEGRATION") == "1"
+PUBLISH_HTTP = os.environ.get("YIA_E2E_PUBLISH_HTTP") == "1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +196,18 @@ def _container_http_body(container: str, hostname: str) -> str:
     return result.stdout
 
 
+def _host_http_body(hostname: str) -> str:
+    connection = http.client.HTTPConnection("127.0.0.1", 80, timeout=30)
+    try:
+        connection.request("GET", "/", headers={"Host": hostname})
+        response = connection.getresponse()
+        body = response.read().decode("utf-8")
+    finally:
+        connection.close()
+    assert response.status == 200, body
+    return body
+
+
 @pytest.mark.parametrize("case", VALID_CASES, ids=lambda case: case.name)
 def test_valid_fixture_converges_through_public_make_api(
     tmp_path: Path,
@@ -268,7 +282,8 @@ def test_fixture_runs_end_to_end_with_docker(
     project_name = _materialize(tmp_path, case)
     sources_before = _contents(tmp_path / "apps")
     override = tmp_path / "compose.e2e.yaml"
-    if "apache" in case.services:
+    isolated_apache = "apache" in case.services and not PUBLISH_HTTP
+    if isolated_apache:
         override.write_text(
             "services:\n  apache:\n    ports: !reset []\n",
             encoding="utf-8",
@@ -278,7 +293,7 @@ def test_fixture_runs_end_to_end_with_docker(
         initialized = _engine_make(tmp_path, "init")
         assert initialized.returncode == 0, initialized.stderr
 
-        if "apache" in case.services:
+        if isolated_apache:
             built = _make(tmp_path, "build")
             assert built.returncode == 0, built.stderr
             first = _compose(
@@ -301,6 +316,10 @@ def test_fixture_runs_end_to_end_with_docker(
         assert all(service["state"] == "running" for service in services)
         assert all(service["health"] == "healthy" for service in services)
 
+        diagnosed = _make(tmp_path, "doctor", "FORMAT=json")
+        assert diagnosed.returncode == 0, diagnosed.stderr
+        assert json.loads(diagnosed.stdout)["status"] == "ok"
+
         container_ids = {
             service["name"]: _container_id(service["name"]) for service in services
         }
@@ -312,9 +331,14 @@ def test_fixture_runs_end_to_end_with_docker(
         )
         for hostname, expected in case.responses:
             assert apache is not None
-            assert expected in _container_http_body(apache, hostname)
+            body = (
+                _host_http_body(hostname)
+                if PUBLISH_HTTP
+                else _container_http_body(apache, hostname)
+            )
+            assert expected in body
 
-        if "apache" in case.services:
+        if isolated_apache:
             rebuilt = _make(tmp_path, "build")
             assert rebuilt.returncode == 0, rebuilt.stderr
             second = _compose(
@@ -329,7 +353,7 @@ def test_fixture_runs_end_to_end_with_docker(
         else:
             second = _make(tmp_path, "update")
         assert second.returncode == 0, second.stderr
-        if "apache" not in case.services:
+        if not isolated_apache:
             assert "déjà à jour" in second.stdout
         assert {
             name: _container_id(name) for name in container_ids

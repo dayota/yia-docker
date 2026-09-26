@@ -111,6 +111,21 @@ def installation_checks(
     return checks
 
 
+def tool_versions() -> dict[str, str | None]:
+    """Return stable version information without contacting the Docker daemon."""
+    versions: dict[str, str | None] = {"python": sys.version.split()[0]}
+    commands = (
+        ("git", "git", ["--version"]),
+        ("make", "make", ["--version"]),
+        ("docker", "docker", ["--version"]),
+        ("docker-compose", "docker", ["compose", "version"]),
+    )
+    for key, executable, arguments in commands:
+        check = _command_check(executable, arguments)
+        versions[key] = check["details"] if check["status"] == "ok" else None
+    return versions
+
+
 def install_dependencies() -> None:
     apt_get = shutil.which("apt-get")
     if apt_get is None:

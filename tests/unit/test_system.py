@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from yia.errors import ErrorCode, YiaError
-from yia.system import install_dependencies, installation_checks
+from yia.system import install_dependencies, installation_checks, tool_versions
 
 
 def test_install_rejects_non_apt_system(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -32,3 +32,15 @@ def test_check_install_reports_missing_docker_without_running_it(
     assert by_name["docker"]["status"] == "error"
     assert by_name["docker-compose"]["status"] == "error"
     assert by_name["docker-daemon"]["status"] == "error"
+
+
+def test_tool_versions_are_stable_when_commands_are_missing(monkeypatch) -> None:
+    monkeypatch.setattr("yia.system.shutil.which", lambda _name: None)
+
+    versions = tool_versions()
+
+    assert versions["python"]
+    assert versions["git"] is None
+    assert versions["make"] is None
+    assert versions["docker"] is None
+    assert versions["docker-compose"] is None

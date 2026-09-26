@@ -89,8 +89,14 @@ Doit fonctionner sans Docker.
 Affiche :
 
 - version Yia ;
+- commit Git du moteur lorsqu'il est disponible ;
 - version du schéma `yia.yml` ;
-- version du schéma documentaire.
+- version du schéma documentaire ;
+- versions de Python, Git, Make, Docker et Docker Compose lorsqu'ils sont
+  détectés.
+
+La détection des versions ne contacte pas le daemon Docker. Un outil absent est
+signalé comme indisponible et ne fait pas échouer la commande.
 
 Supporte `FORMAT=json`.
 

@@ -2,7 +2,8 @@
 
 ## État d'implémentation
 
-Les phases 0 à 14 du plan d'implémentation fournissent le socle Python, la
+Les phases 0 à 15 du plan d'implémentation fournissent la version stabilisée
+0.1.0, le socle Python, la
 validation stricte de `yia.yml`, son modèle interne normalisé et l'état local
 reconstructible, un moteur de génération déterministe et la topologie Docker
 Compose avec son point d'entrée HTTP Apache, ses runtimes PHP-FPM et ses
@@ -33,6 +34,14 @@ Les scénarios Docker end-to-end, volontairement opt-in, s'exécutent avec :
 
 ```bash
 YIA_RUN_DOCKER_INTEGRATION=1 .venv/bin/python -m pytest -q tests/integration
+```
+
+Pour valider également le chemin public exact de `make update` et le routage
+depuis l'hôte, le port 80 doit être libre :
+
+```bash
+YIA_RUN_DOCKER_INTEGRATION=1 YIA_E2E_PUBLISH_HTTP=1 \
+  .venv/bin/python -m pytest -q tests/integration/test_end_to_end_fixtures.py
 ```
 
 Dans un projet consommateur contenant `.yia/` et `yia.yml`, l'initialisation

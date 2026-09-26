@@ -459,3 +459,18 @@ Disposer d'une première version utilisable pour créer de vrais projets.
 - tests locaux verts ;
 - absence de destruction implicite de données ;
 - migration de schéma prévue architecturalement.
+
+### Décisions de stabilisation
+
+- la version `0.1.0`, les versions de schémas exécutables et les ressources
+  déclarées pour la distribution sont protégées par des tests de cohérence ;
+- `make version` expose le commit, les schémas et les versions de Python, Git,
+  Make, Docker et Docker Compose sans contacter le daemon Docker ;
+- le contrat de destruction distingue explicitement `destroy`, qui conserve
+  les données, de `destroy-data`, qui exige une confirmation ;
+- les E2E peuvent conserver leur isolation par défaut ou valider le chemin
+  public complet sur le port 80 avec `YIA_E2E_PUBLISH_HTTP=1` ; ce second mode
+  couvre `make update`, `make doctor`, le routage HTTP et l'idempotence ;
+- une version de schéma incompatible reste arrêtée avant mutation avec
+  `YIA_MIGRATION_REQUIRED` et le code de sortie 6, ce qui réserve un point
+  d'extension explicite aux futures migrations sans en inventer le contenu.
