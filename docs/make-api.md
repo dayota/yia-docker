@@ -118,6 +118,11 @@ Yia peut notamment installer ou configurer :
 - Make ;
 - Python et dépendances requises.
 
+L'implémentation V1 affiche d'abord la liste puis utilise `apt-get` pour les
+paquets `docker.io`, `docker-compose-v2`, `git`, `make`, `python3` et
+`python3-venv`. Elle utilise `sudo` uniquement lorsque le processus n'est pas
+déjà exécuté avec les privilèges nécessaires.
+
 ### Règle
 
 Sur un système non compatible APT, la commande doit échouer proprement avec une erreur explicite.
@@ -190,6 +195,12 @@ Cas d'usage :
 
 Doit être idempotent.
 
+En V1, les commandes Docker `up`, `restart`, `build`, `rebuild`, `logs`,
+`shell` et `exec` exigent que cette génération soit à jour. Un runtime absent,
+modifié ou obsolète produit `YIA_GENERATION_FAILED` et recommande explicitement
+`make generate`. `make up` ne régénère donc pas implicitement pendant la phase
+10.
+
 ---
 
 ## 12. `make update`
@@ -236,6 +247,11 @@ Arrête l'environnement.
 
 Ne supprime pas les données persistantes.
 
+La commande utilise l'identité enregistrée dans le Compose généré et les labels
+Docker Compose pour rester utilisable après une modification de `yia.yml`. Elle
+arrête proprement puis retire les containers et le réseau du projet, sans
+toucher aux volumes.
+
 ---
 
 ## 15. `make restart`
@@ -258,6 +274,9 @@ Reconstruit les images et recrée les services nécessaires.
 
 Ne supprime aucune donnée persistante.
 
+La V1 exécute un build sans cache puis recrée les containers avec attente des
+healthchecks. Les volumes nommés sont réutilisés.
+
 ---
 
 ## 18. `make ps`
@@ -265,6 +284,10 @@ Ne supprime aucune donnée persistante.
 Affiche les services du projet.
 
 Supporte `FORMAT=json`.
+
+La sortie machine Yia est un objet contenant une liste `services`, triée par
+service et nom de container. Chaque entrée expose `name`, `service`, `state`,
+`health` et `status`, sans recopier de variable d'environnement.
 
 ---
 
@@ -378,6 +401,11 @@ Exécute les tests Yia lorsque la commande est utilisée dans le repository Yia.
 
 Dans un projet consommateur, son rôle éventuel doit être défini explicitement avant implémentation.
 
+Le comportement V1 est désormais défini ainsi : dans le dépôt Yia, la commande
+exécute la suite Pytest du moteur ; dans un projet consommateur, elle exécute
+uniquement les validations Yia du projet et ne suppose aucune commande de test
+métier.
+
 ---
 
 ## 26. `make destroy`
@@ -391,6 +419,9 @@ Supprime l'environnement Docker généré :
 Par défaut, les données persistantes doivent être conservées sauf si le contrat exact d'implémentation exige une distinction plus stricte.
 
 La suppression des données utilise une commande séparée.
+
+La V1 supprime les containers et réseaux identifiés par le label Compose exact
+du projet, puis `.yia-runtime/`. Elle conserve tous les volumes et `.yia-data/`.
 
 ---
 
@@ -406,6 +437,12 @@ Elle doit :
 - afficher clairement les données concernées ;
 - demander une confirmation interactive sauf option volontaire de mode non interactif explicitement conçue ;
 - ne jamais être déclenchée par `update`, `down`, `restart`, `rebuild` ou `destroy`.
+
+Le mode interactif V1 demande de saisir exactement le nom du projet. Le mode
+non interactif volontaire est `make destroy-data YES=1`. La commande affiche
+les noms exacts des volumes ciblés avant confirmation, supprime d'abord les
+containers et réseaux du projet, puis uniquement ses volumes labellisés par
+Docker Compose. `.yia-data/` reste conservé.
 
 ---
 

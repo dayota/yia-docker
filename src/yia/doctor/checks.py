@@ -1,36 +1,81 @@
 from __future__ import annotations
 
-import shutil
-import sys
+from pathlib import Path
 from typing import Any
 
+from yia.docker.runner import project_containers
+from yia.project import Project, generation_is_current
+from yia.system import installation_checks
 
-def run_checks() -> dict[str, Any]:
-    checks = [
-        {
-            "name": "python",
-            "status": "ok" if sys.version_info >= (3, 12) else "error",
-            "details": sys.version.split()[0],
-        },
-        {
-            "name": "docker",
-            "status": "ok" if shutil.which("docker") else "warning",
-            "details": shutil.which("docker") or "docker introuvable",
-        },
-        {
-            "name": "git",
-            "status": "ok" if shutil.which("git") else "error",
-            "details": shutil.which("git") or "git introuvable",
-        },
-        {
-            "name": "make",
-            "status": "ok" if shutil.which("make") else "error",
-            "details": shutil.which("make") or "make introuvable",
-        },
-    ]
 
-    overall = "error" if any(c["status"] == "error" for c in checks) else "ok"
-    if overall == "ok" and any(c["status"] == "warning" for c in checks):
-        overall = "warning"
+def _overall_status(checks: list[dict[str, str]]) -> str:
+    if any(check["status"] == "error" for check in checks):
+        return "error"
+    if any(check["status"] == "warning" for check in checks):
+        return "warning"
+    return "ok"
 
-    return {"status": overall, "checks": checks}
+
+def run_checks(
+    project: Project | None = None,
+    *,
+    yia_root: Path | None = None,
+) -> dict[str, Any]:
+    checks = installation_checks(
+        project_root=project.root if project is not None else None,
+        yia_root=yia_root,
+    )
+    if project is None:
+        return {"status": _overall_status(checks), "checks": checks}
+
+    checks.append(
+        {
+            "name": "configuration",
+            "status": "ok",
+            "details": str(project.config_path),
+        }
+    )
+    current = generation_is_current(project)
+    checks.append(
+        {
+            "name": "generation",
+            "status": "ok" if current else "warning",
+            "details": "à jour" if current else "absente ou obsolète",
+        }
+    )
+
+    docker_ready = all(
+        check["status"] == "ok"
+        for check in checks
+        if check["name"] in {"docker", "docker-compose", "docker-daemon"}
+    )
+    if docker_ready:
+        containers = project_containers(project.root, project.config.project.name)
+        if not containers:
+            checks.append(
+                {
+                    "name": "containers",
+                    "status": "warning",
+                    "details": "environnement arrêté",
+                }
+            )
+        else:
+            unhealthy = [
+                container.service or container.name
+                for container in containers
+                if container.state != "running"
+                or container.health in {"unhealthy", "starting"}
+            ]
+            checks.append(
+                {
+                    "name": "containers",
+                    "status": "error" if unhealthy else "ok",
+                    "details": (
+                        ", ".join(unhealthy)
+                        if unhealthy
+                        else f"{len(containers)} service(s) sain(s)"
+                    ),
+                }
+            )
+
+    return {"status": _overall_status(checks), "checks": checks}

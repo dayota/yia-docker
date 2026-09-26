@@ -436,6 +436,15 @@ références d'interpolation. `POSTGRES_USER`, `POSTGRES_DB` et
 `POSTGRES_PASSWORD` initialisent exclusivement un volume vide ; les modifier
 ne migre ni un rôle, ni une base, ni un mot de passe déjà persisté.
 
+La commande `make validate` vérifie la présence d'une valeur non vide pour
+`POSTGRES_PASSWORD`, en donnant priorité à l'environnement du processus puis au
+fichier `.env`. La valeur elle-même n'est jamais incluse dans une erreur ou une
+sortie machine.
+
+Pour chaque application Node, `make validate` vérifie également que le fichier
+`package.json` existe, contient un JSON valide et déclare un script `dev` non
+vide, conformément au contrat du runtime Node.
+
 ---
 
 ## 13. Validation stricte

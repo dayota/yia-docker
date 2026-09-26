@@ -270,6 +270,22 @@ Stabiliser l'API publique.
 - `rebuild`
 - `test`
 
+### Décisions d'implémentation
+
+- toutes les cibles publiques V1 de `make-api.md` sont présentes dans le
+  Makefile et routées vers la CLI interne ;
+- `generate` constitue l'étape explicite de génération pendant cette phase ;
+- les commandes Docker refusent un runtime absent ou obsolète au lieu de le
+  régénérer silencieusement ;
+- les noms d'applications, services et runtimes sont résolus vers les services
+  Compose sans exposer les noms physiques des containers ;
+- `destroy` conserve les volumes et `destroy-data` exige une confirmation ou
+  `YES=1` ;
+- dans un projet consommateur, `test` valide Yia sans inventer une commande de
+  test métier ;
+- `init` et `update` possèdent leur cible stable mais leur orchestration reste
+  explicitement réservée aux phases 12 et 13, après la phase documentaire.
+
 ---
 
 ## Phase 11 — Documentation projet

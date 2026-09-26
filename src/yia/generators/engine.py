@@ -257,7 +257,10 @@ class GenerationEngine:
             )
         )
 
-    def generate(self, config: NormalizedConfig) -> GenerationResult:
+    def _expected_snapshot(
+        self,
+        config: NormalizedConfig,
+    ) -> tuple[dict[str, GeneratedFile], GenerationManifest]:
         state = YiaState.from_config(config)
         context = GenerationContext(config=config, state=state)
         generated_files = _collect_files(self.generators, context)
@@ -279,6 +282,15 @@ class GenerationEngine:
             path=MANIFEST_PATH,
             content=manifest.to_bytes(),
         )
+        return all_files, manifest
+
+    def is_current(self, config: NormalizedConfig) -> bool:
+        expected_files, _ = self._expected_snapshot(config)
+        runtime_path = config.project_root / RUNTIME_DIRECTORY
+        return _snapshot_matches(runtime_path, expected_files)
+
+    def generate(self, config: NormalizedConfig) -> GenerationResult:
+        all_files, manifest = self._expected_snapshot(config)
         runtime_path = config.project_root / RUNTIME_DIRECTORY
         if _snapshot_matches(runtime_path, all_files):
             return GenerationResult(False, runtime_path, manifest)
