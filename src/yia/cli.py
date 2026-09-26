@@ -33,6 +33,7 @@ from yia.project import (
 )
 from yia.resources import schema_path
 from yia.system import APT_PACKAGES, install_dependencies, installation_checks
+from yia.updating import update_project
 from yia.versions import CONFIGURATION_SCHEMA_VERSION, DOCUMENTATION_SCHEMA_VERSION
 
 
@@ -235,6 +236,34 @@ def cmd_init(args: argparse.Namespace) -> int:
     print("- services : " + (", ".join(result.services) or "aucun"))
     print("- URLs : " + (", ".join(result.urls) or "aucune"))
     print("- prochaine commande : make up")
+    return 0
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    project = _project(args)
+    result = update_project(project)
+    print("[OK]")
+    print("Projet Yia synchronisé avec yia.yml.")
+    print(f"- projet : {result.project}")
+    print(
+        "- génération : "
+        + ("mise à jour" if result.generation_changed else "déjà à jour")
+    )
+    print(
+        "- documentation : "
+        + ("mise à jour" if result.documentation.changed else "déjà à jour")
+    )
+    print(
+        "- Docker : "
+        + (
+            "services convergés et healthchecks validés"
+            if result.compose_applied
+            else "aucun service déclaré"
+        )
+    )
+    if result.forced_services:
+        print("- services recréés : " + ", ".join(result.forced_services))
+    print("- données persistantes : préservées")
     return 0
 
 
@@ -473,15 +502,6 @@ def cmd_test(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_reserved(args: argparse.Namespace) -> int:
-    phase = 13
-    raise YiaError(
-        ErrorCode.GENERIC,
-        f"La commande {args.command} sera assemblée par la phase {phase}.",
-        {"command": args.command, "phase": phase},
-    )
-
-
 def _add_config_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", default="yia.yml")
 
@@ -577,9 +597,12 @@ def build_parser() -> argparse.ArgumentParser:
     _add_config_argument(p_init)
     p_init.set_defaults(func=cmd_init)
 
-    p_update = sub.add_parser("update")
+    p_update = sub.add_parser(
+        "update",
+        help="Faire converger le projet vers yia.yml.",
+    )
     _add_config_argument(p_update)
-    p_update.set_defaults(func=cmd_reserved)
+    p_update.set_defaults(func=cmd_update)
 
     return parser
 

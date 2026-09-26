@@ -244,6 +244,29 @@ Il doit être idempotent.
 
 Il ne doit pas redémarrer inutilement un service non affecté lorsque l'implémentation peut déterminer qu'il n'a pas changé.
 
+En V1, `update` :
+
+- refuse avant toute écriture un état interne dont la version requiert une
+  migration ;
+- synchronise la documentation dérivée et les artefacts de
+  `.yia-runtime/`, sans modifier les fichiers documentaires humains ;
+- exécute `docker compose up --detach --wait --remove-orphans --build` lorsque
+  la topologie contient au moins un service ; Compose utilise alors son cache
+  de build et ne recrée que les containers dont la configuration ou l'image a
+  changé ;
+- recrée de façon ciblée Apache ou le runtime PHP concerné lorsqu'un fichier de
+  configuration généré monté en bind a changé sans modifier le modèle Compose ;
+- n'appelle pas Docker lorsque la topologie ne contient aucun service ;
+- conserve `.env`, `.yia-data/`, les volumes nommés, les sources et la
+  documentation humaine ;
+- refuse le changement automatique du nom de projet Compose et retourne
+  `YIA_MIGRATION_REQUIRED`, afin de ne pas abandonner silencieusement les
+  ressources de l'ancien projet.
+
+Une seconde exécution sur le même `yia.yml` conserve les fichiers générés à
+l'identique. Si des services existent, Compose vérifie néanmoins leur
+convergence et leurs healthchecks sans recréer les containers inchangés.
+
 ---
 
 ## 13. `make up`

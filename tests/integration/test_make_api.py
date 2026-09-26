@@ -210,3 +210,56 @@ def test_consumer_make_init_does_not_start_docker(
 
     assert result.returncode == 0, result.stderr
     assert not docker_log.exists()
+
+
+def test_consumer_make_update_is_idempotent_without_docker_services(
+    tmp_path: Path,
+) -> None:
+    _minimal_consumer(tmp_path)
+    initialized = subprocess.run(
+        ["make", "--no-print-directory", "init"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert initialized.returncode == 0, initialized.stderr
+    config = tmp_path / "yia.yml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            "minimal.localhost",
+            "updated.localhost",
+        ),
+        encoding="utf-8",
+    )
+    derived = tmp_path / ".agents/docs/architecture/development-environment.md"
+    derived.write_text("stale\n", encoding="utf-8")
+
+    first = subprocess.run(
+        ["make", "--no-print-directory", "update"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    compose = tmp_path / ".yia-runtime/compose/compose.yaml"
+    identities = {
+        path: (path.stat().st_ino, path.stat().st_mtime_ns)
+        for path in (derived, compose)
+    }
+    second = subprocess.run(
+        ["make", "--no-print-directory", "update"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 0, second.stderr
+    assert "déjà à jour" in second.stdout
+    assert "Ce document est généré par Yia" in derived.read_text(encoding="utf-8")
+    assert {
+        path: (path.stat().st_ino, path.stat().st_mtime_ns)
+        for path in identities
+    } == identities

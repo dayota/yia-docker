@@ -101,3 +101,48 @@ def test_compose_command_uses_project_root_and_dotenv(
     assert ["--env-file", str(dotenv)] == arguments[6:8]
     assert arguments[-3:] == ["logs", "--no-color", "postgres"]
     assert "--follow" not in arguments
+
+
+def test_update_converges_with_build_wait_and_targeted_recreation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    class Result:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(arguments, **_kwargs):
+        calls.append(list(arguments))
+        return Result()
+
+    monkeypatch.setattr("yia.docker.runner._docker_path", lambda: "docker")
+    monkeypatch.setattr("yia.docker.runner.subprocess.run", fake_run)
+    compose = DockerCompose(
+        project_root=tmp_path,
+        project_name="demo",
+        compose_path=tmp_path / ".yia-runtime/compose/compose.yaml",
+        dotenv_path=tmp_path / ".env",
+    )
+
+    compose.converge()
+    compose.force_recreate_services(("apache", "php-8.4"))
+
+    assert calls[0][-5:] == [
+        "up",
+        "--detach",
+        "--wait",
+        "--remove-orphans",
+        "--build",
+    ]
+    assert calls[1][-7:] == [
+        "up",
+        "--detach",
+        "--wait",
+        "--force-recreate",
+        "--no-deps",
+        "apache",
+        "php-8.4",
+    ]

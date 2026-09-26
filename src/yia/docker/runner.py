@@ -139,6 +139,27 @@ class DockerCompose:
             operation="compose-up",
         )
 
+    def converge(self) -> None:
+        self.run(
+            ["up", "--detach", "--wait", "--remove-orphans", "--build"],
+            operation="compose-update",
+        )
+
+    def force_recreate_services(self, services: Sequence[str]) -> None:
+        if not services:
+            return
+        self.run(
+            [
+                "up",
+                "--detach",
+                "--wait",
+                "--force-recreate",
+                "--no-deps",
+                *services,
+            ],
+            operation="compose-update-recreate",
+        )
+
     def down(self) -> None:
         self.run(["down", "--remove-orphans"], operation="compose-down")
 

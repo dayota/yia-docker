@@ -22,7 +22,7 @@ help:
 	  '  make validate [FORMAT=json]          Valide yia.yml et les variables requises' \
 	  '  make config                          Affiche la configuration normalisée' \
 	  '  make generate                        Génère .yia-runtime sans démarrer Docker' \
-	  '  make update                          Réservé à la phase 13' \
+	  '  make update                          Synchronise runtime, documentation et Docker' \
 	  '  make up                              Démarre l’environnement généré' \
 	  '  make down                            Arrête sans supprimer les données' \
 	  '  make restart                         Redémarre sans supprimer les données' \

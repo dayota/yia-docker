@@ -381,6 +381,24 @@ make update
 
 ne produit aucun changement supplémentaire.
 
+### Décisions d'implémentation
+
+- la compatibilité de l'état interne et la stabilité du nom de projet Compose
+  sont contrôlées avant toute écriture ;
+- la documentation dérivée et `.yia-runtime/` sont synchronisés de manière
+  idempotente, sans écraser les fichiers humains ni `.env` ;
+- une topologie contenant des services converge avec Compose en reconstruisant
+  les images avec le cache, en retirant les services orphelins et en attendant
+  les healthchecks ;
+- Compose décide des services dont l'image ou la configuration nécessite une
+  recréation ; Apache et les runtimes PHP sont en plus recréés de façon ciblée
+  lorsque leurs configurations générées montées en bind changent seules ;
+- une topologie vide ne requiert pas Docker ;
+- les volumes nommés, `.yia-data/`, les sources applicatives et la
+  documentation humaine sont toujours préservés ;
+- un changement de nom de projet exige une migration explicite afin de ne pas
+  laisser silencieusement des ressources Docker sous l'ancienne identité.
+
 ---
 
 ## Phase 14 — Tests end-to-end

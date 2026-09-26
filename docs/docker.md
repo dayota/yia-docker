@@ -500,6 +500,16 @@ utilisés. Les services et ressources sont triés par nom logique.
 
 Les changements de Dockerfile ou de runtime doivent être détectables par `make update`.
 
+En V1, `make update` reconstruit avec le cache puis applique la topologie via
+Compose. Compose recrée les services dont l'image ou la configuration a changé
+et attend leur état running ou healthy. Les changements des fichiers générés
+montés en bind entraînent en complément une recréation ciblée d'Apache ou du
+runtime PHP concerné, sans propager cette recréation à ses dépendances.
+
+Cette convergence ne renouvelle pas les volumes et ne supprime jamais les
+volumes nommés, `.yia-data/` ou `.env`. Le changement du nom de projet Compose
+nécessite une migration explicite.
+
 ---
 
 ## 13. Healthchecks

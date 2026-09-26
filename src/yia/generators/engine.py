@@ -145,6 +145,40 @@ def _snapshot_matches(
     return True
 
 
+def _snapshot_changes(
+    runtime_path: Path,
+    expected_files: dict[str, GeneratedFile],
+) -> tuple[str, ...]:
+    if runtime_path.is_symlink() or not runtime_path.is_dir():
+        return tuple(sorted(expected_files))
+
+    actual_files: dict[str, Path] = {}
+    try:
+        for path in runtime_path.rglob("*"):
+            if path.is_symlink():
+                return tuple(sorted(expected_files))
+            if path.is_file():
+                actual_files[path.relative_to(runtime_path).as_posix()] = path
+            elif not path.is_dir():
+                return tuple(sorted(expected_files))
+
+        changed: list[str] = []
+        for relative_path in sorted(set(actual_files) | set(expected_files)):
+            actual = actual_files.get(relative_path)
+            expected = expected_files.get(relative_path)
+            if actual is None or expected is None:
+                changed.append(relative_path)
+                continue
+            if (
+                actual.read_bytes() != expected.content
+                or actual.stat().st_mode & 0o777 != expected.mode
+            ):
+                changed.append(relative_path)
+        return tuple(changed)
+    except OSError:
+        return tuple(sorted(expected_files))
+
+
 def _write_staging_snapshot(
     staging_path: Path,
     files: dict[str, GeneratedFile],
@@ -292,8 +326,9 @@ class GenerationEngine:
     def generate(self, config: NormalizedConfig) -> GenerationResult:
         all_files, manifest = self._expected_snapshot(config)
         runtime_path = config.project_root / RUNTIME_DIRECTORY
-        if _snapshot_matches(runtime_path, all_files):
-            return GenerationResult(False, runtime_path, manifest)
+        changed_paths = _snapshot_changes(runtime_path, all_files)
+        if not changed_paths:
+            return GenerationResult(False, runtime_path, manifest, ())
 
         try:
             staging_path = Path(
@@ -320,4 +355,4 @@ class GenerationEngine:
             except OSError:
                 pass
 
-        return GenerationResult(True, runtime_path, manifest)
+        return GenerationResult(True, runtime_path, manifest, changed_paths)

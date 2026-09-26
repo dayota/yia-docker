@@ -45,3 +45,4 @@ class GenerationResult:
     changed: bool
     runtime_path: Path
     manifest: "GenerationManifest"
+    changed_paths: tuple[str, ...] = ()

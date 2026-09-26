@@ -106,7 +106,9 @@ def test_two_identical_generations_produce_exactly_the_same_result(
     second = engine.generate(config)
 
     assert first.changed is True
+    assert first.changed_paths
     assert second.changed is False
+    assert second.changed_paths == ()
     assert _runtime_snapshot(tmp_path) == first_snapshot
     assert (runtime.stat().st_ino, runtime.stat().st_mtime_ns) == runtime_identity
     assert (artifact.stat().st_ino, artifact.stat().st_mtime_ns) == artifact_identity
@@ -184,6 +186,7 @@ def test_modified_or_unmanaged_files_are_replaced(tmp_path: Path) -> None:
     result = engine.generate(config)
 
     assert result.changed is True
+    assert result.changed_paths == ("managed.txt", "unmanaged.txt")
     assert (runtime / "managed.txt").read_text(encoding="utf-8") == "expected"
     assert not (runtime / "unmanaged.txt").exists()
 
