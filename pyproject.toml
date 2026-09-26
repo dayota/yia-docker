@@ -49,6 +49,26 @@ where = ["src"]
 ]
 "share/yia/docker/node/22" = ["docker/node/22/Dockerfile"]
 "share/yia/docker/node/24" = ["docker/node/24/Dockerfile"]
+"share/yia/templates/documentation" = [
+  "templates/documentation/AGENTS.fragment.md",
+  "templates/documentation/INDEX.md",
+  "templates/documentation/glossary.md"
+]
+"share/yia/templates/documentation/decisions" = [
+  "templates/documentation/decisions/README.md"
+]
+"share/yia/templates/skills/project-docs" = [
+  "templates/skills/project-docs/SKILL.md"
+]
+"share/yia/templates/skills/update-project-docs" = [
+  "templates/skills/update-project-docs/SKILL.md"
+]
+"share/yia/templates/project" = [
+  "templates/project/.env.example",
+  "templates/project/AGENTS.md",
+  "templates/project/Makefile",
+  "templates/project/yia.yml"
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,12 +1,3 @@
-# Projet utilisant Yia
-
-Ce projet utilise Yia comme sous-module Git dans `.yia/`.
-
-- Ne jamais modifier `.yia/` depuis le projet consommateur.
-- Modifier `yia.yml` pour décrire l'environnement cible.
-- Utiliser le Makefile racine comme interface publique.
-
-<!-- YIA:DOCUMENTATION:START -->
 ## Documentation projet
 
 Ce projet utilise le système documentaire Yia.
@@ -32,4 +23,3 @@ Ne jamais stocker de secret dans la documentation.
 En cas de contradiction entre documentation et implémentation, ne pas choisir
 silencieusement une interprétation : identifier le conflit et le résoudre selon
 les sources normatives applicables.
-<!-- YIA:DOCUMENTATION:END -->

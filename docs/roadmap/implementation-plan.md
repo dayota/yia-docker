@@ -304,6 +304,23 @@ Implémenter `docs/documentation.md`.
 - fusion contrôlée d'`AGENTS.md` ;
 - version du schéma documentaire.
 
+### Décisions d'implémentation
+
+- les primitives `install_documentation` et `update_documentation` convergent
+  vers la même structure déterministe ; leur orchestration par les cibles Make
+  reste réservée aux phases 12 et 13 ;
+- `INDEX.md`, le glossaire, le guide des décisions et les deux skills sont
+  créés uniquement lorsqu'ils sont absents, puis appartiennent au projet ;
+- `architecture/development-environment.md` est le seul document intégralement
+  régénéré par Yia pendant cette phase ;
+- les règles documentaires d'`AGENTS.md` sont contenues dans une section gérée
+  bornée par `YIA:DOCUMENTATION:START` et `YIA:DOCUMENTATION:END` ; tout contenu
+  extérieur à cette section est préservé ;
+- la version de schéma documentaire reste enregistrée dans l'état interne
+  reconstructible et la validation détecte une version incompatible ;
+- les écritures refusent les liens symboliques afin de ne jamais sortir de la
+  racine du projet consommateur.
+
 ---
 
 ## Phase 12 — `make init`
