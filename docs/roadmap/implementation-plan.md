@@ -226,6 +226,17 @@ Supporter PostgreSQL comme service d'infrastructure.
 - volume persistant ;
 - reset/destruction.
 
+### Décisions V1
+
+- aucune version par défaut : le tag est obligatoire dans `yia.yml` ;
+- une seule instance mutualisée par projet ;
+- une base et un superutilisateur initialisés par l'image officielle, avec
+  `postgres` comme valeur par défaut et `POSTGRES_PASSWORD` requis dans `.env` ;
+- aucun port hôte par défaut, mapping fixe `5432:5432` avec `expose: true` ;
+- volume nommé `postgres-data`, monté selon le layout de la version majeure ;
+- `reset`, `down`, `restart`, `rebuild`, `update` et `destroy` préservent les
+  données ; seule la commande explicite `destroy-data` peut les supprimer.
+
 ---
 
 ## Phase 10 — API Make complète

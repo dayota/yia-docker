@@ -183,6 +183,17 @@ def test_full_topology_contains_expected_services_volumes_and_ports() -> None:
 
     postgres = compose["services"]["postgres"]
     assert postgres["image"] == "postgres:18"
+    assert postgres["environment"] == {
+        "POSTGRES_DB": "${POSTGRES_DB:-postgres}",
+        "POSTGRES_PASSWORD": (
+            "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}"
+        ),
+        "POSTGRES_USER": "${POSTGRES_USER:-postgres}",
+    }
+    assert postgres["healthcheck"]["test"] == [
+        "CMD-SHELL",
+        'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"',
+    ]
     assert "ports" not in postgres
     assert postgres["volumes"] == [
         {
@@ -354,41 +365,35 @@ def test_postgres_is_published_only_when_explicitly_exposed(tmp_path: Path) -> N
     assert compose["services"]["postgres"]["ports"] == ["5432:5432"]
 
 
-@pytest.mark.parametrize(
-    ("version", "target"),
-    [
-        ("17", "/var/lib/postgresql/data"),
-        ("18", "/var/lib/postgresql"),
-        ("18.1-alpine", "/var/lib/postgresql"),
-    ],
-)
-def test_postgres_volume_target_follows_official_image_layout(
+def test_postgres_password_value_is_never_written_to_compose(
     tmp_path: Path,
-    version: str,
-    target: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("POSTGRES_PASSWORD", "a-local-secret-value")
     config = normalize_config(
         {
             "version": 1,
             "project": {"name": "database"},
             "environment": {"domain": "database.localhost"},
-            "services": {"postgres": {"version": version}},
+            "services": {"postgres": {"version": "18"}},
             "applications": {},
         },
         project_root=tmp_path,
     )
 
-    _, compose = _compose_payload(config)
+    content, _ = _compose_payload(config)
 
-    assert compose["services"]["postgres"]["volumes"][0]["target"] == target
+    assert b"a-local-secret-value" not in content
+    assert b"POSTGRES_PASSWORD must be set in .env" in content
 
 
-def test_compose_generator_integrates_with_idempotent_engine(tmp_path: Path) -> None:
+def test_postgres_compose_generator_is_idempotent(tmp_path: Path) -> None:
     config = normalize_config(
         {
             "version": 1,
-            "project": {"name": "minimal"},
-            "environment": {"domain": "minimal.localhost"},
+            "project": {"name": "database"},
+            "environment": {"domain": "database.localhost"},
+            "services": {"postgres": {"version": "18"}},
             "applications": {},
         },
         project_root=tmp_path,
@@ -404,4 +409,5 @@ def test_compose_generator_integrates_with_idempotent_engine(tmp_path: Path) -> 
     assert (
         tmp_path / ".yia-runtime/compose/compose.yaml"
     ).read_bytes() == compose_content
+    assert b"postgres-data" in compose_content
     assert second.manifest.generators == ("docker-compose",)

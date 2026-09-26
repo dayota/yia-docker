@@ -2,12 +2,13 @@
 
 ## État d'implémentation
 
-Les phases 0 à 8 du plan d'implémentation fournissent le socle Python, la
+Les phases 0 à 9 du plan d'implémentation fournissent le socle Python, la
 validation stricte de `yia.yml`, son modèle interne normalisé et l'état local
 reconstructible, un moteur de génération déterministe et la topologie Docker
 Compose avec son point d'entrée HTTP Apache, ses runtimes PHP-FPM et ses
-runtimes de développement Node/Nuxt. Pour préparer le dépôt puis exécuter les
-contrôles :
+runtimes de développement Node/Nuxt, ainsi qu'un service PostgreSQL persistant
+initialisé depuis les variables du fichier `.env`. Pour préparer le dépôt puis
+exécuter les contrôles :
 
 ```bash
 python3 -m venv .venv

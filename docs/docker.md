@@ -27,8 +27,8 @@ Cette sous-spécification définit le modèle d'exécution Docker de Yia V1.
 La phase 5 fournit la topologie Compose et référence des tags d'images Yia
 déterministes. La phase 6 fournit l'image et la configuration Apache. La phase
 7 fournit les images et configurations PHP-FPM. La phase 8 fournit les images
-et l'exécution de développement Node/Nuxt. Le contenu de l'image PostgreSQL
-relève de la phase suivante.
+et l'exécution de développement Node/Nuxt. La phase 9 intègre l'image officielle
+PostgreSQL et sa persistance.
 
 ---
 
@@ -326,7 +326,32 @@ Yia supporte un seul service PostgreSQL mutualisé par projet en V1.
 
 La version PostgreSQL est toujours explicite dans `yia.yml`.
 
-### 7.3. Exposition
+Yia ne choisit aucune version par défaut et transmet le tag validé à l'image
+officielle `postgres`. L'existence de ce tag est vérifiée par Docker lors de la
+récupération de l'image.
+
+### 7.3. Bases et utilisateurs
+
+La V1 initialise une seule base et un seul superutilisateur via le mécanisme
+standard de l'image officielle. Les valeurs viennent exclusivement du fichier
+`.env` du projet :
+
+| Variable | Contrat |
+|---|---|
+| `POSTGRES_PASSWORD` | obligatoire, non vide, sans valeur fournie ou générée par Yia |
+| `POSTGRES_USER` | optionnelle, `postgres` par défaut |
+| `POSTGRES_DB` | optionnelle, `postgres` par défaut |
+
+Le Compose généré ne contient que les références à ces variables, jamais leur
+valeur. Il n'active pas l'authentification `trust`. Les variables sont prises en
+compte par l'image uniquement lors de l'initialisation d'un volume vide. Yia V1
+ne crée pas de bases, rôles ou permissions supplémentaires et ne migre pas une
+instance existante lorsqu'une de ces variables change.
+
+Depuis les autres containers du projet, PostgreSQL est joignable sur
+`postgres:5432`.
+
+### 7.4. Exposition
 
 Le port PostgreSQL n'est pas publié vers l'hôte par défaut.
 
@@ -339,9 +364,11 @@ expose: true
 Yia peut publier PostgreSQL vers l'hôte.
 
 Le service Compose logique s'appelle `postgres`. Lorsque l'exposition est
-activée, le mapping V1 est `5432:5432`.
+activée, le mapping V1 est `5432:5432` et l'instance devient joignable depuis
+l'hôte sur `localhost:5432`. Yia ne choisit pas automatiquement un autre port
+en cas de conflit.
 
-### 7.4. Données
+### 7.5. Données
 
 Les données PostgreSQL sont stockées dans un volume Docker nommé persistant.
 
@@ -353,6 +380,14 @@ PostgreSQL 17 inclus, puis dans `/var/lib/postgresql` à partir de PostgreSQL
 `make down`, `make update`, `make rebuild` ou `make restart` ne doivent jamais supprimer ce volume.
 
 La suppression des données passe exclusivement par une commande destructive explicite définie dans `make-api.md`.
+
+`make reset` conserve également ce volume. `make destroy` conserve les données
+persistantes ; seule la future commande publique `make destroy-data`, appelée
+explicitement et avec confirmation selon `make-api.md`, peut supprimer le
+volume PostgreSQL.
+
+Cette différence de chemin de montage entre les versions 17 et 18 suit le
+[contrat de l'image officielle PostgreSQL](https://hub.docker.com/_/postgres).
 
 ---
 
@@ -486,7 +521,9 @@ La topologie V1 configure :
 - Node avec une connexion TCP vers l'application HTTP ou un contrôle du
   processus principal pour une application sans port ;
 - PostgreSQL avec `pg_isready` et les variables standard de l'image, sans
-  inscrire leur valeur dans le fichier généré.
+  inscrire leur valeur dans le fichier généré. L'expansion des variables est
+  effectuée dans le container afin que le healthcheck utilise exactement la
+  base et l'utilisateur transmis au serveur.
 
 Chaque healthcheck utilise un intervalle de 10 secondes, un timeout de 5
 secondes, 5 tentatives et une période initiale de 5 secondes.

@@ -423,6 +423,19 @@ Les variables d'environnement applicatives sont gérées exclusivement via `.env
 
 Yia peut documenter qu'une variable est requise, mais ne doit pas intégrer sa valeur à la configuration déclarative.
 
+Lorsque PostgreSQL est activé, les variables suivantes sont lues depuis
+`.env` par l'orchestration Docker :
+
+- `POSTGRES_PASSWORD` : obligatoire et non vide ;
+- `POSTGRES_USER` : optionnelle, `postgres` par défaut ;
+- `POSTGRES_DB` : optionnelle, `postgres` par défaut.
+
+Ces valeurs ne font pas partie du modèle normalisé et ne sont jamais copiées
+dans les artefacts générés. Le fichier Compose contient uniquement des
+références d'interpolation. `POSTGRES_USER`, `POSTGRES_DB` et
+`POSTGRES_PASSWORD` initialisent exclusivement un volume vide ; les modifier
+ne migre ni un rôle, ni une base, ni un mot de passe déjà persisté.
+
 ---
 
 ## 13. Validation stricte

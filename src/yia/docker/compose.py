@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from typing import Iterable
 
 import yaml
@@ -21,6 +20,13 @@ from .php import (
     PHP_FPM_CONFIG_CONTAINER_PATH,
     php_applications_by_runtime,
     php_configuration_path,
+)
+from .postgres import (
+    POSTGRES_CONTAINER_PORT,
+    POSTGRES_DATA_VOLUME,
+    POSTGRES_SERVICE_NAME,
+    postgres_data_path,
+    postgres_environment,
 )
 
 
@@ -237,34 +243,27 @@ def _postgres_service(config: NormalizedConfig) -> dict[str, object] | None:
 
     service: dict[str, object] = {
         "image": f"postgres:{postgres.version}",
+        "environment": postgres_environment(),
         "volumes": [
             {
                 "type": "volume",
-                "source": "postgres-data",
-                "target": _postgres_data_path(postgres.version),
+                "source": POSTGRES_DATA_VOLUME,
+                "target": postgres_data_path(postgres.version),
             }
         ],
         "networks": [NETWORK_NAME],
         "healthcheck": _healthcheck(
             [
                 "CMD-SHELL",
-                "pg_isready -U ${POSTGRES_USER:-postgres} "
-                "-d ${POSTGRES_DB:-postgres}",
+                'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"',
             ]
         ),
     }
     if postgres.expose:
-        service["ports"] = ["5432:5432"]
+        service["ports"] = [
+            f"{POSTGRES_CONTAINER_PORT}:{POSTGRES_CONTAINER_PORT}"
+        ]
     return service
-
-
-def _postgres_data_path(version: str) -> str:
-    major_match = re.match(r"[0-9]+", version)
-    if major_match is None:
-        raise ValueError("PostgreSQL version must begin with its major number")
-    if int(major_match.group()) >= 18:
-        return "/var/lib/postgresql"
-    return "/var/lib/postgresql/data"
 
 
 def _compose_model(config: NormalizedConfig) -> dict[str, object]:
@@ -285,8 +284,8 @@ def _compose_model(config: NormalizedConfig) -> dict[str, object]:
 
     postgres = _postgres_service(config)
     if postgres is not None:
-        services["postgres"] = postgres
-        volumes.add("postgres-data")
+        services[POSTGRES_SERVICE_NAME] = postgres
+        volumes.add(POSTGRES_DATA_VOLUME)
 
     compose: dict[str, object] = {
         "name": config.project.compose_name,
