@@ -1,0 +1,23 @@
+version: 1
+project:
+  name: multi-php
+
+environment:
+  domain: multi-php.localhost
+applications:
+  legacy:
+    type: php
+    path: apps/legacy
+    runtime:
+      php: "8.2"
+    web:
+      hostname: legacy.multi-php.localhost
+      public_directory: public
+  api:
+    type: php
+    path: apps/api
+    runtime:
+      php: "8.4"
+    web:
+      hostname: api.multi-php.localhost
+      public_directory: public

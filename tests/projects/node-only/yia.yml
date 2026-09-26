@@ -1,0 +1,18 @@
+version: 1
+project:
+  name: node-only
+
+environment:
+  domain: node-only.localhost
+applications:
+  frontend:
+    type: node
+    path: apps/frontend
+    runtime:
+      node: "24"
+    framework:
+      name: nuxt
+      version: 4
+    web:
+      hostname: node-only.localhost
+      port: 3000

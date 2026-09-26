@@ -1,0 +1,15 @@
+version: 1
+project:
+  name: INVALID NAME
+
+environment:
+  domain: invalid.localhost
+
+applications:
+  api:
+    type: php
+    path: apps/api
+    runtime:
+      node: "24"
+    framework:
+      name: nuxt

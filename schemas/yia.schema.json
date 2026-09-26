@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yia.local/schemas/yia.schema.json",
+  "title": "Yia project configuration",
+  "description": "Configuration déclarative d'un projet utilisant Yia.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "project",
+    "environment",
+    "applications"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "domain"
+      ]
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "postgres": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expose": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "applications": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/application"
+      }
+    }
+  },
+  "$defs": {
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path",
+        "runtime"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "php",
+            "node"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "php": {
+              "type": "string",
+              "minLength": 1
+            },
+            "node": {
+              "type": "string",
+              "minLength": 1
+            },
+            "package_manager": {
+              "enum": [
+                "pnpm",
+                "npm",
+                "yarn"
+              ],
+              "default": "pnpm"
+            }
+          },
+          "minProperties": 1
+        },
+        "framework": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "enum": [
+                "laravel",
+                "symfony",
+                "nuxt"
+              ]
+            },
+            "version": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              ]
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "web": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "hostname": {
+              "type": "string",
+              "minLength": 1
+            },
+            "public_directory": {
+              "type": "string",
+              "minLength": 1
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "php"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runtime": {
+                "required": [
+                  "php"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "node"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "package_manager"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "framework": {
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "laravel",
+                      "symfony"
+                    ]
+                  }
+                }
+              },
+              "web": {
+                "required": [
+                  "hostname",
+                  "public_directory"
+                ],
+                "not": {
+                  "required": [
+                    "port"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "node"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runtime": {
+                "required": [
+                  "node"
+                ],
+                "not": {
+                  "required": [
+                    "php"
+                  ]
+                }
+              },
+              "framework": {
+                "properties": {
+                  "name": {
+                    "const": "nuxt"
+                  }
+                }
+              },
+              "web": {
+                "required": [
+                  "hostname",
+                  "port"
+                ],
+                "not": {
+                  "required": [
+                    "public_directory"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

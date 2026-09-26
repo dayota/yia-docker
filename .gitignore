@@ -1,0 +1,34 @@
+# Yia runtime / project-local state
+.yia-runtime/
+.yia-data/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/rm -r
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / packaging
+build/
+dist/
+
+# Temporary files
+*.tmp
+*.swp

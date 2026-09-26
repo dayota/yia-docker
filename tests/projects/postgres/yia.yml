@@ -1,0 +1,11 @@
+version: 1
+project:
+  name: postgres
+
+environment:
+  domain: postgres.localhost
+services:
+  postgres:
+    enabled: true
+    version: "18"
+applications: {}

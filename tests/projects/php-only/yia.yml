@@ -1,0 +1,18 @@
+version: 1
+project:
+  name: php-only
+
+environment:
+  domain: php-only.localhost
+applications:
+  api:
+    type: php
+    path: apps/api
+    runtime:
+      php: "8.4"
+    framework:
+      name: laravel
+      version: 13
+    web:
+      hostname: api.php-only.localhost
+      public_directory: public

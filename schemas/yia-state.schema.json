@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Yia internal state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "yia_version",
+    "schema_version",
+    "documentation_schema",
+    "configuration_hash",
+    "generated_at"
+  ],
+  "properties": {
+    "yia_version": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "documentation_schema": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "configuration_hash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

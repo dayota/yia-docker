@@ -1,0 +1,32 @@
+version: 1
+project:
+  name: full
+environment:
+  domain: full.localhost
+services:
+  postgres:
+    enabled: true
+    version: "18"
+applications:
+  api:
+    type: php
+    path: apps/api
+    runtime:
+      php: "8.4"
+    framework:
+      name: laravel
+      version: 13
+    web:
+      hostname: api.full.localhost
+      public_directory: public
+  frontend:
+    type: node
+    path: apps/frontend
+    runtime:
+      node: "24"
+    framework:
+      name: nuxt
+      version: 4
+    web:
+      hostname: full.localhost
+      port: 3000

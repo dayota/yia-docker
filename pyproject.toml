@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yia"
+version = "0.1.0"
+description = "Environnement de développement Docker composable et agent-friendly."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "PyYAML>=6.0.2,<7",
+  "jsonschema>=4.23,<5"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9"
+]
+
+[project.scripts]
+yia = "yia.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/yia/schemas" = ["schemas/yia.schema.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
