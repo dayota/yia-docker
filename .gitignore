@@ -1,5 +1,7 @@
 # Yia runtime / project-local state
 .yia-runtime/
+.yia-runtime.staging-*/
+.yia-runtime.backup-*/
 .yia-data/
 
 # Environment and secrets
@@ -11,7 +13,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-.pytest_cache/rm -r
+.pytest_cache/
 .coverage
 htmlcov/
 .venv/

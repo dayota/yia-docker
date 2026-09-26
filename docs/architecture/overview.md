@@ -47,3 +47,13 @@ du modèle normalisé. Son écriture est atomique et idempotente.
 Il ne constitue jamais une source de vérité : `yia.yml` reste la configuration déclarative normative.
 
 Le contrat détaillé est défini dans [`docs/state.md`](../state.md).
+
+## Génération
+
+Les générateurs reçoivent le modèle normalisé et retournent des artefacts en
+mémoire. Le moteur construit un snapshot complet dans un staging, écrit son
+manifeste puis publie l'ensemble sous `.yia-runtime/` avec restauration de
+l'ancien snapshot en cas d'échec.
+
+Le contrat détaillé est défini dans
+[`docs/generation.md`](../generation.md).

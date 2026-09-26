@@ -79,6 +79,9 @@ le fichier temporaire.
 Deux écritures du même état produisent les mêmes octets. Lorsque le contenu est
 déjà identique, le fichier existant n'est pas remplacé.
 
+Lors d'une génération complète, l'état est intégré au snapshot de staging et
+publié avec l'ensemble du runtime selon [`generation.md`](./generation.md).
+
 ## 7. Migrations
 
 Une version de schéma d'état différente de la version supportée produit :

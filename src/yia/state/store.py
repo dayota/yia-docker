@@ -96,7 +96,7 @@ def _validate_payload(
         )
 
 
-def _serialized_state(state: YiaState) -> bytes:
+def serialize_state(state: YiaState) -> bytes:
     return (
         json.dumps(
             state.to_dict(),
@@ -154,7 +154,7 @@ def write_state(
         path=path,
         schema_file=schema_file or default_state_schema_path(),
     )
-    serialized = _serialized_state(state)
+    serialized = serialize_state(state)
 
     try:
         if path.is_file() and path.read_bytes() == serialized:

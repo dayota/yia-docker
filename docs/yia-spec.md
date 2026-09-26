@@ -532,6 +532,10 @@ Lorsque possible, Yia doit générer les nouveaux fichiers dans une zone tempora
 
 Une erreur de génération ne doit pas laisser `.yia-runtime/` dans un état partiellement mis à jour pouvant être confondu avec un état valide.
 
+Le contrat détaillé de la génération déterministe est défini dans :
+
+> [`generation.md`](./generation.md)
+
 ### 12.4. État interne
 
 Si Yia a besoin de mémoriser un état interne, celui-ci doit être stocké dans `.yia-runtime/state/` et être reconstruisible.

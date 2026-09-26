@@ -2,9 +2,10 @@
 
 ## État d'implémentation
 
-Les phases 0 à 3 du plan d'implémentation fournissent le socle Python, la
+Les phases 0 à 4 du plan d'implémentation fournissent le socle Python, la
 validation stricte de `yia.yml`, son modèle interne normalisé et l'état local
-reconstructible. Pour préparer le dépôt puis exécuter les contrôles :
+reconstructible, ainsi qu'un moteur de génération déterministe. Pour préparer
+le dépôt puis exécuter les contrôles :
 
 ```bash
 python3 -m venv .venv
@@ -35,6 +36,7 @@ Yia/
     ├── documentation.md
     ├── configuration.md
     ├── state.md
+    ├── generation.md
     ├── docker.md
     └── make-api.md
 ```
@@ -69,6 +71,7 @@ README.md
         ├── documentation.md         ← système documentaire / agents
         ├── configuration.md         ← contrat yia.yml
         ├── state.md                 ← état interne reconstructible
+        ├── generation.md            ← génération déterministe
         ├── docker.md                ← Docker, réseaux, volumes, runtimes
         └── make-api.md              ← API publique Make
 ```
@@ -223,6 +226,25 @@ Définit le fichier `.yia-runtime/state/yia-state.json`, son schéma, son
 - le format de l'état interne change ;
 - une version ou un hash est ajouté à l'état ;
 - la lecture, l'écriture ou la migration de l'état évolue.
+
+
+---
+
+### [`docs/generation.md`](./docs/generation.md)
+
+**Identifiant :** `YIA-SPEC-GENERATION`
+
+**Statut : normative**
+
+Définit l'abstraction des générateurs, le manifeste des fichiers générés, la
+détection de changements et la publication transactionnelle dans
+`.yia-runtime/`.
+
+**Lire lorsque :**
+
+- un générateur ou un artefact généré est ajouté ou modifié ;
+- le manifeste, le staging ou la publication du runtime évolue ;
+- l'idempotence de la génération est concernée.
 
 
 ---
