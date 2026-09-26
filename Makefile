@@ -18,7 +18,7 @@ help:
 	  '  make install                         Installe les dépendances via APT' \
 	  '  make check-install                   Vérifie les prérequis système' \
 	  '  make version [FORMAT=json]           Affiche les versions Yia et schémas' \
-	  '  make init                            Réservé à la phase 12' \
+	  '  make init                            Initialise un projet sans démarrer Docker' \
 	  '  make validate [FORMAT=json]          Valide yia.yml et les variables requises' \
 	  '  make config                          Affiche la configuration normalisée' \
 	  '  make generate                        Génère .yia-runtime sans démarrer Docker' \

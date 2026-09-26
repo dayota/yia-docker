@@ -341,6 +341,23 @@ make doctor
 
 fonctionnent conformément aux specs.
 
+### Décisions d'implémentation
+
+- la présence du sous-module `.yia/` correspondant au moteur exécuté est
+  vérifiée avant toute écriture dans le projet ;
+- `yia.yml` et les dépendances applicatives sont validés avant le bootstrap ;
+- le Makefile proxy, `.env.example` puis `.env` sont créés uniquement s'ils
+  sont absents et tout fichier local existant est préservé ;
+- une variable obligatoire absente, telle que `POSTGRES_PASSWORD`, est signalée
+  après création du squelette `.env`, mais avant documentation et génération ;
+- l'initialisation installe et valide la documentation, puis publie le runtime
+  déterministe sans démarrer Docker ;
+- `.yia-data/` n'est pas créé en V1 puisque les données persistantes utilisent
+  des volumes Docker nommés ;
+- une seconde initialisation complète est refusée sans réécriture et renvoie
+  vers `make update` ;
+- `make doctor` contrôle désormais la cohérence documentaire du projet.
+
 ---
 
 ## Phase 13 — `make update`

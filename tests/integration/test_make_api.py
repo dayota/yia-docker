@@ -143,3 +143,70 @@ def test_consumer_make_test_runs_yia_validation_only(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "Validation Yia du projet réussie" in result.stdout
+
+
+def test_consumer_make_init_bootstraps_an_empty_project(tmp_path: Path) -> None:
+    shutil.copy(ROOT / "tests/projects/minimal/yia.yml", tmp_path / "yia.yml")
+    os.symlink(ROOT, tmp_path / ".yia", target_is_directory=True)
+
+    init = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-C",
+            str(ROOT),
+            f"PROJECT_ROOT={tmp_path}",
+            "init",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    validate = subprocess.run(
+        ["make", "--no-print-directory", "validate"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert init.returncode == 0, init.stderr
+    assert "Projet Yia initialisé" in init.stdout
+    assert validate.returncode == 0, validate.stderr
+    assert (tmp_path / "Makefile").is_file()
+    assert (tmp_path / ".env.example").is_file()
+    assert (tmp_path / ".env").is_file()
+    assert (tmp_path / ".agents/docs/INDEX.md").is_file()
+    assert (tmp_path / ".agents/skills/project-docs/SKILL.md").is_file()
+    assert (tmp_path / ".agents/skills/update-project-docs/SKILL.md").is_file()
+    assert (tmp_path / ".yia-runtime/compose/compose.yaml").is_file()
+    assert not (tmp_path / ".yia-data").exists()
+
+
+def test_consumer_make_init_does_not_start_docker(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    shutil.copy(ROOT / "tests/projects/minimal/yia.yml", tmp_path / "yia.yml")
+    os.symlink(ROOT, tmp_path / ".yia", target_is_directory=True)
+    shutil.copy(ROOT / "templates/project/Makefile", tmp_path / "Makefile")
+    docker_log = tmp_path / "docker-was-called"
+    docker = tmp_path / "docker"
+    docker.write_text(
+        f"#!/bin/sh\nprintf called > {docker_log}\nexit 99\n",
+        encoding="utf-8",
+    )
+    docker.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
+
+    result = subprocess.run(
+        ["make", "--no-print-directory", "init"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not docker_log.exists()

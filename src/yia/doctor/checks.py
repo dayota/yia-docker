@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from yia.documentation import validate_documentation
 from yia.docker.runner import project_containers
+from yia.errors import YiaError
 from yia.project import Project, generation_is_current
 from yia.system import installation_checks
 
@@ -35,6 +37,24 @@ def run_checks(
             "details": str(project.config_path),
         }
     )
+    try:
+        validate_documentation(project.config)
+    except YiaError as exc:
+        checks.append(
+            {
+                "name": "documentation",
+                "status": "error",
+                "details": exc.code.value,
+            }
+        )
+    else:
+        checks.append(
+            {
+                "name": "documentation",
+                "status": "ok",
+                "details": ".agents/docs",
+            }
+        )
     current = generation_is_current(project)
     checks.append(
         {

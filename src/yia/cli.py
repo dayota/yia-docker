@@ -22,6 +22,7 @@ from yia.docker.runner import (
 )
 from yia.doctor import run_checks
 from yia.errors import ErrorCode, YiaError
+from yia.initialization import initialize_project
 from yia.project import (
     Project,
     generate_project,
@@ -202,6 +203,38 @@ def cmd_generate(args: argparse.Namespace) -> int:
         },
         as_json=False,
     )
+    return 0
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    result = initialize_project(args.config, yia_root=YIA_ROOT)
+    print("[OK]")
+    print("Projet Yia initialisé.")
+    print(f"- projet : {result.project}")
+    print(f"- configuration : {result.config_path}")
+    print(
+        "- fichiers projet créés : "
+        + (", ".join(result.created_project_files) or "aucun")
+    )
+    print(
+        "- fichiers projet préservés : "
+        + (", ".join(result.preserved_project_files) or "aucun")
+    )
+    print(
+        "- génération : "
+        + ("mise à jour" if result.generation_changed else "déjà à jour")
+    )
+    print(
+        "- documentation : "
+        + ("mise à jour" if result.documentation.changed else "déjà à jour")
+    )
+    print(
+        "- applications : " + (", ".join(result.applications) or "aucune")
+    )
+    print("- runtimes : " + (", ".join(result.runtimes) or "aucun"))
+    print("- services : " + (", ".join(result.services) or "aucun"))
+    print("- URLs : " + (", ".join(result.urls) or "aucune"))
+    print("- prochaine commande : make up")
     return 0
 
 
@@ -441,7 +474,7 @@ def cmd_test(args: argparse.Namespace) -> int:
 
 
 def cmd_reserved(args: argparse.Namespace) -> int:
-    phase = 12 if args.command == "init" else 13
+    phase = 13
     raise YiaError(
         ErrorCode.GENERIC,
         f"La commande {args.command} sera assemblée par la phase {phase}.",
@@ -540,10 +573,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_test.add_argument("--project-root", default=".")
     p_test.set_defaults(func=cmd_test)
 
-    for name in ("init", "update"):
-        command = sub.add_parser(name)
-        _add_config_argument(command)
-        command.set_defaults(func=cmd_reserved)
+    p_init = sub.add_parser("init", help="Initialiser un projet consommateur.")
+    _add_config_argument(p_init)
+    p_init.set_defaults(func=cmd_init)
+
+    p_update = sub.add_parser("update")
+    _add_config_argument(p_update)
+    p_update.set_defaults(func=cmd_reserved)
 
     return parser
 

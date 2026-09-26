@@ -166,6 +166,19 @@ L'utilisateur utilise ensuite :
 make up
 ```
 
+En V1, `init` :
+
+- vérifie que le sous-module attendu est disponible dans `.yia/` ;
+- valide `yia.yml` et les dépendances applicatives avant toute écriture ;
+- crée le Makefile proxy et `.env.example` uniquement lorsqu'ils sont absents ;
+- crée `.env` depuis le `.env.example` effectif uniquement lorsqu'il est
+  absent, sans jamais remplacer une valeur locale ;
+- initialise et valide la documentation projet ;
+- génère et valide `.yia-runtime/` sans appeler Docker ;
+- ne crée pas `.yia-data/`, la persistance V1 utilisant des volumes nommés ;
+- refuse un projet déjà complètement initialisé et recommande `make update`
+  plutôt que de réinitialiser silencieusement les fichiers gérés.
+
 ---
 
 ## 10. `make validate`
