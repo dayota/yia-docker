@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator, ValidationError
 
 from yia.errors import ErrorCode, YiaError
+
+
+HOSTNAME_PATTERN = re.compile(
+    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+    r"(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*"
+)
 
 
 def _format_path(parts: Any) -> str:
@@ -52,6 +59,21 @@ def _semantic_errors(
     hostnames: dict[str, str] = {}
     resolved_root = project_root.resolve() if project_root is not None else None
 
+    environment = config.get("environment", {})
+    domain = environment.get("domain") if isinstance(environment, dict) else None
+    if isinstance(domain, str) and (
+        len(domain) > 253 or HOSTNAME_PATTERN.fullmatch(domain) is None
+    ):
+        errors.append(
+            {
+                "path": "environment.domain",
+                "message": "domain must be a lowercase ASCII DNS hostname",
+                "received": domain,
+                "constraint": "hostname",
+                "expected": "a valid lowercase ASCII DNS hostname",
+            }
+        )
+
     for name in sorted(applications):
         application = applications[name]
         if not isinstance(application, dict):
@@ -61,22 +83,38 @@ def _semantic_errors(
         if isinstance(web, dict):
             hostname = web.get("hostname")
             if isinstance(hostname, str):
-                hostname_key = hostname.rstrip(".").casefold()
-                if hostname_key in hostnames:
+                if (
+                    len(hostname) > 253
+                    or HOSTNAME_PATTERN.fullmatch(hostname) is None
+                ):
                     errors.append(
                         {
                             "path": f"applications.{name}.web.hostname",
                             "message": (
-                                "hostname already used by application "
-                                f"{hostnames[hostname_key]!r}"
+                                "hostname must be a lowercase ASCII DNS hostname"
                             ),
                             "received": hostname,
-                            "constraint": "unique",
-                            "expected": "a hostname unique within the project",
+                            "constraint": "hostname",
+                            "expected": "a valid lowercase ASCII DNS hostname",
                         }
                     )
                 else:
-                    hostnames[hostname_key] = name
+                    hostname_key = hostname.casefold()
+                    if hostname_key in hostnames:
+                        errors.append(
+                            {
+                                "path": f"applications.{name}.web.hostname",
+                                "message": (
+                                    "hostname already used by application "
+                                    f"{hostnames[hostname_key]!r}"
+                                ),
+                                "received": hostname,
+                                "constraint": "unique",
+                                "expected": "a hostname unique within the project",
+                            }
+                        )
+                    else:
+                        hostnames[hostname_key] = name
 
         if resolved_root is None:
             continue
@@ -142,6 +180,16 @@ def _semantic_errors(
                     "received": public_directory,
                     "constraint": "application_relative_path",
                     "expected": "a relative path contained in the application",
+                }
+            )
+        elif not resolved_public_path.is_dir():
+            errors.append(
+                {
+                    "path": f"applications.{name}.web.public_directory",
+                    "message": "public directory does not exist",
+                    "received": public_directory,
+                    "constraint": "existing_directory",
+                    "expected": "an existing directory inside the application",
                 }
             )
 

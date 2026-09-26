@@ -25,9 +25,9 @@ Cette sous-spécification définit le modèle d'exécution Docker de Yia V1.
 - Les données persistantes ne sont jamais supprimées implicitement.
 
 La phase 5 fournit la topologie Compose et référence des tags d'images Yia
-déterministes. Le contenu et la construction de ces images, ainsi que leurs
-configurations applicatives, relèvent des phases Apache, PHP, Node et
-PostgreSQL suivantes.
+déterministes. La phase 6 fournit l'image et la configuration Apache. Le
+contenu des images et configurations PHP, Node et PostgreSQL relève des phases
+suivantes.
 
 ---
 
@@ -57,6 +57,11 @@ Le service Compose logique s'appelle `apache`. Il utilise l'image
 `yia/apache:<version-yia>` et publie `80:80` en V1. Il dépend avec la condition
 `service_healthy` des runtimes portant les applications exposées.
 
+L'image Yia Apache est construite depuis `docker/apache/` sur la base officielle
+`httpd:2.4.68-alpine3.24`. La topologie Compose utilise le contexte relatif
+`../../.yia/docker/apache`, résolu depuis
+`.yia-runtime/compose/compose.yaml` dans un projet consommateur.
+
 ### 4.2. Responsabilités
 
 Apache :
@@ -67,11 +72,59 @@ Apache :
 - agit comme reverse proxy vers les applications Node ;
 - n'utilise pas HTTPS en V1.
 
+La V1 écoute exclusivement en HTTP sur le port interne et hôte `80`. Elle ne
+génère ni certificat, ni redirection HTTPS, ni directive TLS. L'ajout de HTTPS
+nécessitera un contrat versionné ultérieur.
+
 ### 4.3. Hostnames
 
 Le suffixe `.localhost` est recommandé.
 
 Yia ne doit pas gérer `/etc/hosts` par défaut en V1 lorsque les hostnames `.localhost` sont utilisés.
+
+Les hostnames sont des noms DNS ASCII en minuscules. Chaque label commence et
+se termine par une lettre minuscule ou un chiffre et peut contenir des tirets.
+Un hostname ne peut ni contenir d'espace ou de caractère de contrôle, ni
+dépasser 253 caractères.
+
+### 4.4. Vhosts générés
+
+Lorsque Apache est présent, Yia génère un fichier unique :
+
+```text
+.yia-runtime/apache/vhosts.conf
+```
+
+Il est monté en lecture seule dans
+`/usr/local/apache2/conf/extra/yia-vhosts.conf`. Les vhosts sont ordonnés par
+identifiant applicatif et contiennent un unique `ServerName` issu du bloc
+`web`. Aucun wildcard ni alias implicite n'est généré.
+
+L'image contient un vhost par défaut distinct, limité au endpoint
+`/.yia-health`. Un hostname inconnu n'est donc jamais routé implicitement vers
+la première application.
+
+### 4.5. Applications PHP
+
+Pour une application PHP exposée, Apache monte sa source en lecture seule au
+même chemin `/workspace/<application>` que PHP-FPM. Le `DocumentRoot` est le
+`public_directory` normalisé. Les fichiers `*.php` sont transmis avec
+`SetHandler` à `proxy:fcgi://php-<version>:9000`; les fichiers statiques sont
+servis directement par Apache.
+
+Les fichiers `.htaccess` sont autorisés dans le répertoire public afin de
+prendre en charge les front controllers Laravel et Symfony. La connexion
+FastCGI reste interne au réseau privé et n'est jamais publiée vers l'hôte.
+
+### 4.6. Applications Node
+
+Pour une application Node exposée, Apache transmet `/` au service logique
+`node-<version>-<application>` sur le port déclaré dans `web.port` avec
+`ProxyPass` et `ProxyPassReverse`. Le header `Host` d'origine est préservé.
+
+Le paramètre `upgrade=websocket` de `mod_proxy_http` est activé afin de laisser
+passer les connexions Upgrade/WebSocket, notamment celles utilisées par le
+rechargement à chaud. Aucun port Node n'est publié sur l'hôte.
 
 ---
 
@@ -296,6 +349,10 @@ Les runtimes PHP et Node utilisent l'utilisateur Compose
 `${YIA_UID:-1000}:${YIA_GID:-1000}`. Ces références sont générées telles
 quelles et ne recopient aucune valeur locale dans `.yia-runtime/`.
 
+L'image Apache active uniquement les modules supplémentaires nécessaires en
+V1 : `headers`, `proxy`, `proxy_fcgi`, `proxy_http` et `rewrite`. Le forward
+proxy reste désactivé avec `ProxyRequests Off`.
+
 ---
 
 ## 11. Génération Compose
@@ -347,7 +404,7 @@ Le détail doit être défini par l'implémentation sans masquer les échecs.
 
 La topologie V1 configure :
 
-- Apache avec une requête HTTP locale ;
+- Apache avec une requête HTTP locale vers `/.yia-health` ;
 - PHP avec `php-fpm -t` ;
 - Node avec `node --version`, remplacé par un contrôle applicatif plus précis
   lorsque la phase Node définit sa commande d'exécution ;
@@ -386,4 +443,7 @@ Le modèle Docker V1 est respecté lorsque :
 - PostgreSQL n'est pas exposé par défaut ;
 - aucune donnée persistante n'est supprimée implicitement ;
 - aucun `container_name` n'est fixé ;
-- HTTP uniquement est utilisé en V1.
+- HTTP uniquement est utilisé en V1 ;
+- l'image Apache et sa configuration passent `httpd -t` ;
+- les hostnames PHP atteignent PHP-FPM via FastCGI ;
+- les hostnames Node atteignent leur service via HTTP et supportent Upgrade.

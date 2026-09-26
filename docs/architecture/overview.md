@@ -69,3 +69,11 @@ du projet aux ressources physiques.
 La phase Compose ne démarre aucun container. Les images et configurations de
 runtime sont fournies par les phases spécialisées suivantes. Le contrat
 détaillé est défini dans [`docs/docker.md`](../docker.md).
+
+## Point d'entrée Apache
+
+Apache est construit depuis l'image officielle épinglée par Yia et reste
+l'unique port HTTP publié. Un générateur produit les vhosts depuis le modèle
+normalisé : fichiers PHP vers le runtime FPM mutualisé, requêtes Node vers le
+service applicatif isolé. Les sources PHP exposées et la configuration générée
+sont montées en lecture seule dans Apache.

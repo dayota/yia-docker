@@ -35,8 +35,7 @@
       "additionalProperties": false,
       "properties": {
         "domain": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/hostname"
         }
       },
       "required": [
@@ -95,6 +94,12 @@
     }
   },
   "$defs": {
+    "hostname": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
+    },
     "application": {
       "type": "object",
       "additionalProperties": false,
@@ -112,7 +117,8 @@
         },
         "path": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "^[^\\u0000\\r\\n]+$"
         },
         "runtime": {
           "type": "object",
@@ -172,12 +178,12 @@
           "additionalProperties": false,
           "properties": {
             "hostname": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/$defs/hostname"
             },
             "public_directory": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "pattern": "^[^\\u0000\\r\\n]+$"
             },
             "port": {
               "type": "integer",

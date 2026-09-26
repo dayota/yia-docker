@@ -47,6 +47,86 @@ def test_environment_domain_is_required(tmp_path: Path) -> None:
         validate_config(config, SCHEMA)
 
 
+@pytest.mark.parametrize(
+    "domain",
+    [
+        "Bad.localhost",
+        "-bad.localhost",
+        "bad-.localhost",
+        "bad..localhost",
+        "bad localhost",
+        "bad.localhost\nLoadModule evil modules/evil.so",
+    ],
+)
+def test_environment_domain_must_be_a_safe_dns_hostname(domain: str) -> None:
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": domain},
+        "applications": {},
+    }
+
+    with pytest.raises(YiaError):
+        validate_config(config, SCHEMA)
+
+
+def test_application_hostname_rejects_configuration_injection() -> None:
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "applications": {
+            "frontend": {
+                "type": "node",
+                "path": "apps/frontend",
+                "runtime": {"node": "24"},
+                "web": {
+                    "hostname": "demo.localhost\nProxyRequests On",
+                    "port": 3000,
+                },
+            }
+        },
+    }
+
+    with pytest.raises(YiaError):
+        validate_config(config, SCHEMA)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("path", "apps/api\nInclude evil.conf"),
+        ("public_directory", "public\nRequire all granted"),
+    ],
+)
+def test_application_paths_reject_configuration_injection(
+    field: str,
+    value: str,
+) -> None:
+    application = {
+        "type": "php",
+        "path": "apps/api",
+        "runtime": {"php": "8.4"},
+        "web": {
+            "hostname": "api.demo.localhost",
+            "public_directory": "public",
+        },
+    }
+    if field == "path":
+        application["path"] = value
+    else:
+        application["web"]["public_directory"] = value
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "applications": {"api": application},
+    }
+
+    with pytest.raises(YiaError):
+        validate_config(config, SCHEMA)
+
+
 def test_unknown_property_is_rejected(tmp_path: Path) -> None:
     path = tmp_path / "yia.yml"
     path.write_text(
@@ -59,7 +139,7 @@ def test_unknown_property_is_rejected(tmp_path: Path) -> None:
 
 
 def test_duplicate_hostnames_are_rejected(tmp_path: Path) -> None:
-    (tmp_path / "apps" / "api").mkdir(parents=True)
+    (tmp_path / "apps" / "api" / "public").mkdir(parents=True)
     (tmp_path / "apps" / "frontend").mkdir(parents=True)
     path = tmp_path / "yia.yml"
     path.write_text(
@@ -254,3 +334,36 @@ def test_php_public_directory_must_stay_inside_application(
     assert caught.value.details["validation_errors"][0]["path"] == (
         "applications.api.web.public_directory"
     )
+
+
+def test_php_public_directory_must_exist(tmp_path: Path) -> None:
+    (tmp_path / "apps" / "api").mkdir(parents=True)
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "applications": {
+            "api": {
+                "type": "php",
+                "path": "apps/api",
+                "runtime": {"php": "8.4"},
+                "web": {
+                    "hostname": "demo.localhost",
+                    "public_directory": "public",
+                },
+            }
+        },
+    }
+
+    with pytest.raises(YiaError) as caught:
+        validate_config(config, SCHEMA, project_root=tmp_path)
+
+    assert caught.value.details["validation_errors"] == [
+        {
+            "path": "applications.api.web.public_directory",
+            "message": "public directory does not exist",
+            "received": "public",
+            "constraint": "existing_directory",
+            "expected": "an existing directory inside the application",
+        }
+    ]

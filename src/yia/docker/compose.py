@@ -10,11 +10,14 @@ from yia.config import ApplicationConfig, NormalizedConfig
 from yia.generators import GeneratedFile, GenerationContext
 from yia.versions import YIA_VERSION
 
+from .apache import APACHE_VHOSTS_CONTAINER_PATH, APACHE_VHOSTS_PATH
+
 
 COMPOSE_PATH = "compose/compose.yaml"
 NETWORK_NAME = "yia"
 RUNTIME_ROOT = "/workspace"
 RUNTIME_USER = "${YIA_UID:-1000}:${YIA_GID:-1000}"
+APACHE_BUILD_CONTEXT = "../../.yia/docker/apache"
 
 
 def _healthcheck(test: list[str]) -> dict[str, object]:
@@ -81,16 +84,44 @@ def _apache_service(config: NormalizedConfig) -> dict[str, object] | None:
         )
         for application in web_applications
     }
+    volumes: list[dict[str, object]] = [
+        {
+            "type": "bind",
+            "source": f"../{APACHE_VHOSTS_PATH}",
+            "target": APACHE_VHOSTS_CONTAINER_PATH,
+            "read_only": True,
+        }
+    ]
+    volumes.extend(
+        {
+            **_bind_mount(application),
+            "read_only": True,
+        }
+        for application in web_applications
+        if application.type == "php"
+    )
     return {
         "image": f"yia/apache:{YIA_VERSION}",
+        "build": {
+            "context": APACHE_BUILD_CONTEXT,
+            "dockerfile": "Dockerfile",
+        },
         "ports": ["80:80"],
         "networks": [NETWORK_NAME],
+        "volumes": volumes,
         "depends_on": {
             dependency: {"condition": "service_healthy"}
             for dependency in sorted(dependencies)
         },
         "healthcheck": _healthcheck(
-            ["CMD", "curl", "--fail", "--silent", "http://localhost/"]
+            [
+                "CMD",
+                "wget",
+                "-q",
+                "-O",
+                "/dev/null",
+                "http://127.0.0.1/.yia-health",
+            ]
         ),
     }
 

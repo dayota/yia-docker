@@ -124,6 +124,10 @@ Le suffixe `.localhost` est recommandé en V1.
 
 Yia doit supporter l'utilisation de `*.localhost` sans exiger de modification de `/etc/hosts` lorsque l'environnement hôte le permet.
 
+Le domaine utilise des labels DNS ASCII en minuscules, séparés par des points.
+Chaque label commence et se termine par une lettre ou un chiffre et peut
+contenir des tirets. La longueur maximale est de 253 caractères.
+
 ---
 
 ## 7. `services`
@@ -278,6 +282,11 @@ web:
 
 Une application ne peut pas déclarer plusieurs hostnames.
 
+Le hostname respecte le même format DNS que `environment.domain`.
+
+Le répertoire public doit exister et rester contenu dans le chemin de
+l'application.
+
 ---
 
 ## 11. Applications Node
@@ -361,6 +370,8 @@ web:
 ```
 
 Un seul hostname est supporté par application en V1.
+
+Le hostname respecte le même format DNS que `environment.domain`.
 
 ---
 

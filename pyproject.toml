@@ -30,6 +30,10 @@ where = ["src"]
   "schemas/yia-state.schema.json",
   "schemas/yia-generation-manifest.schema.json"
 ]
+"share/yia/docker/apache" = [
+  "docker/apache/Dockerfile",
+  "docker/apache/yia-health.conf"
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
