@@ -41,6 +41,9 @@ L'état interne doit être stocké dans le projet consommateur sous :
 .yia-runtime/state/yia-state.json
 ```
 
-Il contient des métadonnées de génération et de version.
+Il contient uniquement les versions du moteur et des schémas ainsi que le hash
+du modèle normalisé. Son écriture est atomique et idempotente.
 
 Il ne constitue jamais une source de vérité : `yia.yml` reste la configuration déclarative normative.
+
+Le contrat détaillé est défini dans [`docs/state.md`](../state.md).

@@ -25,7 +25,10 @@ yia = "yia.cli:main"
 where = ["src"]
 
 [tool.setuptools.data-files]
-"share/yia/schemas" = ["schemas/yia.schema.json"]
+"share/yia/schemas" = [
+  "schemas/yia.schema.json",
+  "schemas/yia-state.schema.json"
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

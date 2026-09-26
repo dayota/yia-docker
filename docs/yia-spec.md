@@ -538,6 +538,10 @@ Si Yia a besoin de mémoriser un état interne, celui-ci doit être stocké dans
 
 Il ne doit jamais devenir une seconde source de vérité concurrente de `yia.yml`.
 
+Le contrat détaillé de l'état interne est défini dans :
+
+> [`state.md`](./state.md)
+
 ---
 
 ## 13. API Make

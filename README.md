@@ -2,9 +2,9 @@
 
 ## État d'implémentation
 
-Les phases 0 à 2 du plan d'implémentation fournissent le socle Python, la
-validation stricte de `yia.yml` et son modèle interne normalisé et déterministe.
-Pour préparer le dépôt puis exécuter les contrôles :
+Les phases 0 à 3 du plan d'implémentation fournissent le socle Python, la
+validation stricte de `yia.yml`, son modèle interne normalisé et l'état local
+reconstructible. Pour préparer le dépôt puis exécuter les contrôles :
 
 ```bash
 python3 -m venv .venv
@@ -34,6 +34,7 @@ Yia/
     ├── yia-spec.md
     ├── documentation.md
     ├── configuration.md
+    ├── state.md
     ├── docker.md
     └── make-api.md
 ```
@@ -67,6 +68,7 @@ README.md
         ├── yia-spec.md              ← spécification racine
         ├── documentation.md         ← système documentaire / agents
         ├── configuration.md         ← contrat yia.yml
+        ├── state.md                 ← état interne reconstructible
         ├── docker.md                ← Docker, réseaux, volumes, runtimes
         └── make-api.md              ← API publique Make
 ```
@@ -204,6 +206,23 @@ Périmètre prévu :
 - un volume ou un port est modifié ;
 - Apache, PHP, Node ou PostgreSQL sont concernés ;
 - la génération Compose évolue.
+
+
+---
+
+### [`docs/state.md`](./docs/state.md)
+
+**Identifiant :** `YIA-SPEC-STATE`  
+**Statut : normative**
+
+Définit le fichier `.yia-runtime/state/yia-state.json`, son schéma, son
+écriture atomique, sa reconstruction et la détection des migrations.
+
+**Lire lorsque :**
+
+- le format de l'état interne change ;
+- une version ou un hash est ajouté à l'état ;
+- la lecture, l'écriture ou la migration de l'état évolue.
 
 
 ---

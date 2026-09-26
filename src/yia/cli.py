@@ -3,17 +3,17 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import sysconfig
 from pathlib import Path
 
 from yia import __version__
 from yia.config import load_config
 from yia.doctor import run_checks
-from yia.errors import ErrorCode, YiaError
+from yia.errors import YiaError
+from yia.resources import schema_path
 from yia.validation import validate_config
+from yia.versions import CONFIGURATION_SCHEMA_VERSION, DOCUMENTATION_SCHEMA_VERSION
 
-SCHEMA_VERSION = 1
-DOCUMENTATION_SCHEMA_VERSION = 1
+SCHEMA_VERSION = CONFIGURATION_SCHEMA_VERSION
 
 
 def project_root() -> Path:
@@ -21,23 +21,7 @@ def project_root() -> Path:
 
 
 def default_schema_path() -> Path:
-    candidates = (
-        Path(__file__).resolve().parents[2] / "schemas" / "yia.schema.json",
-        Path(sysconfig.get_path("data"))
-        / "share"
-        / "yia"
-        / "schemas"
-        / "yia.schema.json",
-    )
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-
-    raise YiaError(
-        ErrorCode.GENERIC,
-        "Le schéma de configuration Yia est introuvable.",
-        {"searched_paths": [str(candidate) for candidate in candidates]},
-    )
+    return schema_path("yia.schema.json")
 
 
 def emit(payload: dict, *, as_json: bool) -> None:
