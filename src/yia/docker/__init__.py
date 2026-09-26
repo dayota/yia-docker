@@ -1,5 +1,6 @@
 from .apache import APACHE_VHOSTS_PATH, ApacheGenerator
 from .compose import COMPOSE_PATH, ComposeGenerator
+from .node import SUPPORTED_NODE_VERSIONS
 from .php import PhpGenerator
 
 
@@ -12,5 +13,6 @@ __all__ = [
     "COMPOSE_PATH",
     "ComposeGenerator",
     "PhpGenerator",
+    "SUPPORTED_NODE_VERSIONS",
     "docker_generators",
 ]

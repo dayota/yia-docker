@@ -265,6 +265,25 @@ def test_php_runtime_version_must_be_supported(version: str) -> None:
         validate_config(config, SCHEMA)
 
 
+@pytest.mark.parametrize("version", ["20", "23", "26", "latest"])
+def test_node_runtime_version_must_be_supported(version: str) -> None:
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "applications": {
+            "frontend": {
+                "type": "node",
+                "path": "apps/frontend",
+                "runtime": {"node": version},
+            }
+        },
+    }
+
+    with pytest.raises(YiaError):
+        validate_config(config, SCHEMA)
+
+
 def test_xdebug_is_accepted_only_for_php_applications() -> None:
     php = {
         "version": 1,

@@ -338,8 +338,14 @@ runtime:
 
 Yia ne fournit pas de version Node par défaut.
 
-La version commence par un chiffre et ne contient que des caractères
-compatibles avec un tag Docker (`0-9`, `A-Z`, `a-z`, `.`, `_`, `-`).
+Les versions supportées en V1 sont :
+
+```text
+22
+24
+```
+
+La valeur doit correspondre exactement à l'une de ces versions majeures.
 
 ### 11.2. Gestionnaire de paquets
 
@@ -364,6 +370,11 @@ pnpm
 npm
 yarn
 ```
+
+Le gestionnaire sélectionné doit correspondre aux fichiers de verrouillage du
+projet. En mode développement, Yia installe les dépendances sans créer de
+fichier de verrouillage lorsqu'il n'en existe pas et exige que le fichier
+existant reste inchangé lorsqu'il est présent.
 
 ### 11.3. Frameworks Node
 
@@ -390,6 +401,11 @@ web:
 Un seul hostname est supporté par application en V1.
 
 Le hostname respecte le même format DNS que `environment.domain`.
+
+Une application Node doit fournir un script `dev` dans son `package.json`.
+Lorsqu'un bloc `web` est présent, Yia transmet au script l'adresse d'écoute
+`0.0.0.0` et le port déclaré afin que l'application soit joignable depuis le
+réseau Docker privé.
 
 ---
 
@@ -581,4 +597,5 @@ Le contrat configuration V1 est respecté lorsque :
 - un seul hostname est possible par application ;
 - les variables d'environnement restent dans `.env` ;
 - le gestionnaire Node vaut `pnpm` par défaut ;
+- seules les versions Node 22 et 24 sont acceptées en V1 ;
 - le schéma JSON et les fixtures reflètent cette spécification.

@@ -10,6 +10,11 @@ from yia.generators import GeneratedFile, GenerationContext
 from yia.versions import YIA_VERSION
 
 from .apache import APACHE_VHOSTS_CONTAINER_PATH, APACHE_VHOSTS_PATH
+from .node import (
+    NODE_BUILD_CONTEXT,
+    NODE_HEALTHCHECK_CONTAINER_PATH,
+    node_service_name,
+)
 from .php import (
     PHP_BUILD_CONTEXT,
     PHP_FPM_BASE_PORT,
@@ -22,7 +27,6 @@ from .php import (
 COMPOSE_PATH = "compose/compose.yaml"
 NETWORK_NAME = "yia"
 RUNTIME_ROOT = "/workspace"
-RUNTIME_USER = "${YIA_UID:-1000}:${YIA_GID:-1000}"
 APACHE_BUILD_CONTEXT = "../../.yia/docker/apache"
 
 
@@ -69,10 +73,6 @@ def _node_volume_name(application: ApplicationConfig) -> str:
     return f"node-{application.name}-modules"
 
 
-def _node_service_name(application: ApplicationConfig) -> str:
-    return f"{application.runtime.name}-{application.name}"
-
-
 def _apache_service(config: NormalizedConfig) -> dict[str, object] | None:
     web_applications = [
         application
@@ -86,7 +86,7 @@ def _apache_service(config: NormalizedConfig) -> dict[str, object] | None:
         (
             application.runtime.name
             if application.type == "php"
-            else _node_service_name(application)
+            else node_service_name(application)
         )
         for application in web_applications
     }
@@ -196,9 +196,18 @@ def _node_services(
 
         volume_name = _node_volume_name(application)
         volumes.add(volume_name)
+        environment = {
+            "YIA_GID": "${YIA_GID:-1000}",
+            "YIA_PACKAGE_MANAGER": application.runtime.package_manager,
+            "YIA_UID": "${YIA_UID:-1000}",
+        }
         service: dict[str, object] = {
             "image": f"yia/node:{application.runtime.version}-{YIA_VERSION}",
-            "user": RUNTIME_USER,
+            "build": {
+                "context": NODE_BUILD_CONTEXT,
+                "dockerfile": f"{application.runtime.version}/Dockerfile",
+            },
+            "environment": environment,
             "working_dir": _application_target(application),
             "volumes": [
                 _bind_mount(application),
@@ -209,11 +218,14 @@ def _node_services(
                 ),
             ],
             "networks": [NETWORK_NAME],
-            "healthcheck": _healthcheck(["CMD", "node", "--version"]),
+            "healthcheck": _healthcheck(
+                ["CMD", "node", NODE_HEALTHCHECK_CONTAINER_PATH]
+            ),
         }
         if application.web is not None and application.web.port is not None:
             service["expose"] = [str(application.web.port)]
-        services[_node_service_name(application)] = service
+            environment["YIA_NODE_PORT"] = str(application.web.port)
+        services[node_service_name(application)] = service
 
     return services, volumes
 

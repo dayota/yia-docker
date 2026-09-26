@@ -42,6 +42,13 @@ where = ["src"]
 ]
 "share/yia/docker/php/8.2" = ["docker/php/8.2/Dockerfile"]
 "share/yia/docker/php/8.4" = ["docker/php/8.4/Dockerfile"]
+"share/yia/docker/node" = [
+  "docker/node/develop.sh",
+  "docker/node/entrypoint.sh",
+  "docker/node/node-healthcheck.js"
+]
+"share/yia/docker/node/22" = ["docker/node/22/Dockerfile"]
+"share/yia/docker/node/24" = ["docker/node/24/Dockerfile"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

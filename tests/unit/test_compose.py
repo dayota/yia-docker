@@ -162,8 +162,24 @@ def test_full_topology_contains_expected_services_volumes_and_ports() -> None:
 
     node = compose["services"]["node-24-frontend"]
     assert node["image"] == "yia/node:24-0.1.0"
+    assert node["build"] == {
+        "context": "../../.yia/docker/node",
+        "dockerfile": "24/Dockerfile",
+    }
+    assert node["environment"] == {
+        "YIA_GID": "${YIA_GID:-1000}",
+        "YIA_NODE_PORT": "3000",
+        "YIA_PACKAGE_MANAGER": "pnpm",
+        "YIA_UID": "${YIA_UID:-1000}",
+    }
+    assert "user" not in node
     assert node["expose"] == ["3000"]
     assert "ports" not in node
+    assert node["healthcheck"]["test"] == [
+        "CMD",
+        "node",
+        "/usr/local/lib/yia/node-healthcheck.js",
+    ]
 
     postgres = compose["services"]["postgres"]
     assert postgres["image"] == "postgres:18"
@@ -264,6 +280,59 @@ def test_node_processes_are_isolated_while_the_image_is_shared(tmp_path: Path) -
         "node-admin-modules",
         "node-frontend-modules",
     ]
+    for service in compose["services"].values():
+        assert service["build"] == {
+            "context": "../../.yia/docker/node",
+            "dockerfile": "24/Dockerfile",
+        }
+        assert service["environment"]["YIA_PACKAGE_MANAGER"] == "pnpm"
+        assert "YIA_NODE_PORT" not in service["environment"]
+
+
+def test_node_package_managers_and_ports_are_configured_per_application(
+    tmp_path: Path,
+) -> None:
+    for name in ("admin", "frontend"):
+        (tmp_path / "apps" / name).mkdir(parents=True)
+    config = normalize_config(
+        {
+            "version": 1,
+            "project": {"name": "node-managers"},
+            "environment": {"domain": "node-managers.localhost"},
+            "applications": {
+                "admin": {
+                    "type": "node",
+                    "path": "apps/admin",
+                    "runtime": {"node": "22", "package_manager": "npm"},
+                    "web": {
+                        "hostname": "admin.node-managers.localhost",
+                        "port": 3100,
+                    },
+                },
+                "frontend": {
+                    "type": "node",
+                    "path": "apps/frontend",
+                    "runtime": {"node": "24", "package_manager": "yarn"},
+                    "web": {
+                        "hostname": "node-managers.localhost",
+                        "port": 3200,
+                    },
+                },
+            },
+        },
+        project_root=tmp_path,
+    )
+
+    _, compose = _compose_payload(config)
+
+    admin = compose["services"]["node-22-admin"]
+    frontend = compose["services"]["node-24-frontend"]
+    assert admin["build"]["dockerfile"] == "22/Dockerfile"
+    assert admin["environment"]["YIA_PACKAGE_MANAGER"] == "npm"
+    assert admin["environment"]["YIA_NODE_PORT"] == "3100"
+    assert frontend["build"]["dockerfile"] == "24/Dockerfile"
+    assert frontend["environment"]["YIA_PACKAGE_MANAGER"] == "yarn"
+    assert frontend["environment"]["YIA_NODE_PORT"] == "3200"
 
 
 def test_postgres_is_published_only_when_explicitly_exposed(tmp_path: Path) -> None:

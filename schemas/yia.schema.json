@@ -133,8 +133,10 @@
             },
             "node": {
               "type": "string",
-              "minLength": 1,
-              "pattern": "^[0-9][0-9A-Za-z._-]*$"
+              "enum": [
+                "22",
+                "24"
+              ]
             },
             "package_manager": {
               "enum": [

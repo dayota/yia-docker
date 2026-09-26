@@ -26,8 +26,9 @@ Cette sous-spécification définit le modèle d'exécution Docker de Yia V1.
 
 La phase 5 fournit la topologie Compose et référence des tags d'images Yia
 déterministes. La phase 6 fournit l'image et la configuration Apache. La phase
-7 fournit les images et configurations PHP-FPM. Le contenu des images et
-configurations Node et PostgreSQL relève des phases suivantes.
+7 fournit les images et configurations PHP-FPM. La phase 8 fournit les images
+et l'exécution de développement Node/Nuxt. Le contenu de l'image PostgreSQL
+relève de la phase suivante.
 
 ---
 
@@ -235,7 +236,17 @@ processus et volumes restent distincts.
 
 ### 6.2. Images
 
-Yia construit ses propres images Node.
+Yia construit ses propres images Node depuis les bases officielles Debian
+Bookworm suivantes :
+
+| Runtime | Image de base |
+|---|---|
+| Node 22 | `node:22.23.3-bookworm` |
+| Node 24 | `node:24.21.0-bookworm` |
+
+Les versions supportées en V1 sont exclusivement `22` et `24`. Chaque
+Dockerfile est stocké sous `docker/node/<version>/` et utilise le contexte de
+build commun `docker/node/`.
 
 ### 6.3. Gestionnaire de paquets
 
@@ -246,6 +257,18 @@ Une application peut sélectionner dans `yia.yml` :
 - `pnpm`
 - `npm`
 - `yarn`
+
+Les versions fournies par l'image V1 sont :
+
+- npm : version incluse dans l'image Node officielle épinglée ;
+- pnpm `11.27.1` ;
+- Yarn Classic `1.22.22`.
+
+Le lancement installe les dépendances avant le script de développement. Un
+lockfile présent est traité en mode figé (`pnpm-lock.yaml`, `package-lock.json`,
+`npm-shrinkwrap.json` ou `yarn.lock`). En son absence, l'installation désactive
+la création d'un lockfile afin de ne pas modifier silencieusement les fichiers
+humains du projet.
 
 ### 6.4. Dépendances Node
 
@@ -259,15 +282,37 @@ La source est montée dans `/workspace/<application>` et le volume logique
 `node-<application>-modules` dans
 `/workspace/<application>/node_modules`.
 
+Le cache du gestionnaire reste interne au container. Il n'est ni déclaré comme
+donnée persistante ni écrit dans la source applicative.
+
 ### 6.5. UID/GID
 
-Les processus Node doivent utiliser l'UID/GID de l'utilisateur hôte lorsque cela est nécessaire pour manipuler les sources montées.
+Chaque service reçoit `${YIA_UID:-1000}` et `${YIA_GID:-1000}`. Son entrypoint,
+initialement root, aligne l'utilisateur interne `node` sur ces identifiants,
+attribue uniquement la racine du volume `node_modules` à cet utilisateur puis
+exécute toute commande applicative sans privilèges avec `gosu`. Il ne modifie
+jamais les propriétaires des sources applicatives.
 
 ### 6.6. HTTP
 
 Les applications Node exposent leur port uniquement sur le réseau Docker.
 
 Apache assure l'exposition HTTP vers l'hôte.
+
+### 6.7. Mode développement et HMR
+
+Le processus par défaut exécute le script `dev` déclaré dans `package.json`
+avec le gestionnaire configuré. Pour une application HTTP, Yia lui transmet
+`--host 0.0.0.0` et `--port <web.port>`. Une application sans bloc `web`
+exécute le même script sans arguments réseau.
+
+Apache préserve le header `Host` et relaie les connexions Upgrade/WebSocket.
+Le HMR Nuxt reste ainsi accessible via le hostname Yia sans publication directe
+du port Node. Aucun mode polling n'est forcé par défaut.
+
+Le healthcheck vérifie une connexion TCP locale sur `web.port` pour une
+application HTTP. Pour une application sans exposition HTTP, il vérifie que le
+processus principal du container existe encore.
 
 ---
 
@@ -376,11 +421,10 @@ yia/php:<version-php>-<version-yia>
 yia/node:<version-node>-<version-yia>
 ```
 
-Le runtime Node utilise l'utilisateur Compose
-`${YIA_UID:-1000}:${YIA_GID:-1000}`. Le runtime PHP transmet séparément
-`${YIA_UID:-1000}` et `${YIA_GID:-1000}` à son entrypoint afin de préparer ses
-volumes avant de démarrer ses workers non-root. Ces références sont générées
-telles quelles et ne recopient aucune valeur locale dans `.yia-runtime/`.
+Les runtimes Node et PHP transmettent séparément `${YIA_UID:-1000}` et
+`${YIA_GID:-1000}` à leurs entrypoints afin de préparer leurs volumes avant de
+démarrer leurs processus non-root. Ces références sont générées telles quelles
+et ne recopient aucune valeur locale dans `.yia-runtime/`.
 
 L'image Apache active uniquement les modules supplémentaires nécessaires en
 V1 : `headers`, `proxy`, `proxy_fcgi`, `proxy_http` et `rewrite`. Le forward
@@ -439,8 +483,8 @@ La topologie V1 configure :
 
 - Apache avec une requête HTTP locale vers `/.yia-health` ;
 - PHP avec `php-fpm -t` ;
-- Node avec `node --version`, remplacé par un contrôle applicatif plus précis
-  lorsque la phase Node définit sa commande d'exécution ;
+- Node avec une connexion TCP vers l'application HTTP ou un contrôle du
+  processus principal pour une application sans port ;
 - PostgreSQL avec `pg_isready` et les variables standard de l'image, sans
   inscrire leur valeur dans le fichier généré.
 
@@ -482,4 +526,8 @@ Le modèle Docker V1 est respecté lorsque :
 - chaque configuration PHP générée passe `php-fpm -t` ;
 - Composer et les extensions PHP documentées sont disponibles ;
 - deux applications d'un même runtime peuvent choisir Xdebug indépendamment ;
+- npm, pnpm et Yarn sont disponibles dans les versions documentées ;
+- les dépendances Node sont installées sans modification silencieuse des
+  lockfiles ;
+- les processus Node utilisent l'UID/GID hôte sans réattribuer les sources ;
 - les hostnames Node atteignent leur service via HTTP et supportent Upgrade.

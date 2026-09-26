@@ -85,3 +85,12 @@ est créé par version utilisée. Dans ce service, un pool FPM généré par
 application isole son port, son répertoire de travail et son activation
 Xdebug. Les sources sont des bind mounts tandis que chaque `vendor/` utilise
 un volume nommé dédié.
+
+## Runtimes Node/Nuxt
+
+Une image est construite pour chaque version Node supportée et partagée par
+les services de cette version. Chaque application conserve néanmoins son
+propre service, son processus de développement et son volume `node_modules`.
+L'entrypoint aligne l'utilisateur `node` sur l'UID/GID hôte avant de lancer le
+gestionnaire déclaré sans privilèges. Apache relaie HTTP et WebSocket vers le
+port privé de l'application afin de préserver le HMR Nuxt.
