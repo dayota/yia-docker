@@ -111,8 +111,6 @@ class DockerCompose:
             "compose",
             "--project-name",
             self.project_name,
-            "--project-directory",
-            str(self.project_root),
         ]
         if self.dotenv_path.is_file():
             command.extend(["--env-file", str(self.dotenv_path)])

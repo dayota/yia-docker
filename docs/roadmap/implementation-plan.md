@@ -420,6 +420,27 @@ Tester Yia sur les fixtures principales.
 
 Aucune CI distante n'est requise à ce stade du projet.
 
+### Décisions d'implémentation
+
+- les sept fixtures valides passent le workflow public `init`, `validate`,
+  `test` et `generate`, avec vérification de l'idempotence exacte du runtime ;
+- la fixture invalide retourne `YIA_CONFIG_INVALID` et ne crée ni Makefile,
+  ni documentation, ni runtime ;
+- les fixtures PHP et Node contiennent des sondes HTTP minimales sans
+  dépendance externe, afin de tester les images et le routage sans introduire
+  de code métier ;
+- les six topologies Docker non vides sont testées en mode opt-in via
+  `YIA_RUN_DOCKER_INTEGRATION=1`, avec des noms de projet uniques et un
+  nettoyage explicite des ressources temporaires ;
+- les E2E Docker vérifient les healthchecks, les hostnames PHP et Node, la
+  préservation des sources et l'absence de recréation au second passage ;
+- le harness retire uniquement la publication du port HTTP au moyen d'un
+  override Compose de test, afin de cohabiter avec un port 80 local déjà
+  occupé sans modifier le Compose généré ni arrêter un environnement externe ;
+- les E2E ont confirmé que les contextes de build doivent rester relatifs au
+  fichier Compose généré ; le runner ne force donc plus un
+  `--project-directory` incompatible avec `../../.yia/docker/...`.
+
 ---
 
 ## Phase 15 — Stabilisation 0.1.0

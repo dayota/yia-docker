@@ -490,6 +490,12 @@ Le document contient le project name Compose, une section `services`, le
 réseau logique unique `yia` et uniquement les volumes nommés effectivement
 utilisés. Les services et ressources sont triés par nom logique.
 
+Les chemins relatifs du document généré sont résolus depuis le répertoire de ce
+premier fichier Compose. Les commandes Yia fixent explicitement le nom de
+projet et le fichier `.env`, mais ne redéfinissent pas `--project-directory`
+vers la racine du projet, afin que les contextes `../../.yia/docker/...`
+restent valides dans un projet consommateur.
+
 ---
 
 ## 12. Build et rebuild

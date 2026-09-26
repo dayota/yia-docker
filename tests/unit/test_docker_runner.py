@@ -98,7 +98,8 @@ def test_compose_command_uses_project_root_and_dotenv(
         "--project-name",
         "demo",
     ]
-    assert ["--env-file", str(dotenv)] == arguments[6:8]
+    assert "--project-directory" not in arguments
+    assert ["--env-file", str(dotenv)] == arguments[4:6]
     assert arguments[-3:] == ["logs", "--no-color", "postgres"]
     assert "--follow" not in arguments
 

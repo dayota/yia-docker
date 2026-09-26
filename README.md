@@ -2,7 +2,7 @@
 
 ## État d'implémentation
 
-Les phases 0 à 13 du plan d'implémentation fournissent le socle Python, la
+Les phases 0 à 14 du plan d'implémentation fournissent le socle Python, la
 validation stricte de `yia.yml`, son modèle interne normalisé et l'état local
 reconstructible, un moteur de génération déterministe et la topologie Docker
 Compose avec son point d'entrée HTTP Apache, ses runtimes PHP-FPM et ses
@@ -14,8 +14,10 @@ documentaire projet installe aussi les skills `project-docs` et
 dérivée de `yia.yml`. `make init` assemble ces briques pour initialiser un
 projet consommateur sans démarrer Docker. `make update` fait ensuite converger
 la documentation, le runtime généré et les services Docker vers `yia.yml`, sans
-supprimer les données persistantes et sans recréer les services inchangés. Pour
-préparer le dépôt puis exécuter les contrôles :
+supprimer les données persistantes et sans recréer les services inchangés. Une
+suite end-to-end couvre les fixtures principales, leurs topologies Docker, le
+routage HTTP et les erreurs de configuration. Pour préparer le dépôt puis
+exécuter les contrôles :
 
 ```bash
 python3 -m venv .venv
@@ -25,6 +27,12 @@ make test
 make validate CONFIG=tests/projects/minimal/yia.yml
 make validate CONFIG=tests/projects/minimal/yia.yml FORMAT=json
 make generate CONFIG=tests/projects/minimal/yia.yml
+```
+
+Les scénarios Docker end-to-end, volontairement opt-in, s'exécutent avec :
+
+```bash
+YIA_RUN_DOCKER_INTEGRATION=1 .venv/bin/python -m pytest -q tests/integration
 ```
 
 Dans un projet consommateur contenant `.yia/` et `yia.yml`, l'initialisation
