@@ -121,6 +121,30 @@ def _semantic_errors(
                 }
             )
 
+        if application.get("type") != "php" or not isinstance(web, dict):
+            continue
+
+        public_directory = web.get("public_directory")
+        if not isinstance(public_directory, str):
+            continue
+
+        public_path = Path(public_directory)
+        resolved_public_path = (resolved_path / public_path).resolve()
+        if public_path.is_absolute() or not resolved_public_path.is_relative_to(
+            resolved_path
+        ):
+            errors.append(
+                {
+                    "path": f"applications.{name}.web.public_directory",
+                    "message": (
+                        "public directory must resolve inside the application path"
+                    ),
+                    "received": public_directory,
+                    "constraint": "application_relative_path",
+                    "expected": "a relative path contained in the application",
+                }
+            )
+
     return errors
 
 

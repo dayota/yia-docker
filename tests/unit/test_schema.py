@@ -182,3 +182,34 @@ def test_php_runtime_rejects_node_package_manager() -> None:
 
     with pytest.raises(YiaError):
         validate_config(config, SCHEMA)
+
+
+@pytest.mark.parametrize("public_directory", ["../public", "/var/www/public"])
+def test_php_public_directory_must_stay_inside_application(
+    tmp_path: Path,
+    public_directory: str,
+) -> None:
+    (tmp_path / "apps" / "api").mkdir(parents=True)
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "applications": {
+            "api": {
+                "type": "php",
+                "path": "apps/api",
+                "runtime": {"php": "8.4"},
+                "web": {
+                    "hostname": "demo.localhost",
+                    "public_directory": public_directory,
+                },
+            }
+        },
+    }
+
+    with pytest.raises(YiaError) as caught:
+        validate_config(config, SCHEMA, project_root=tmp_path)
+
+    assert caught.value.details["validation_errors"][0]["path"] == (
+        "applications.api.web.public_directory"
+    )

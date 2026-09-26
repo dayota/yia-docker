@@ -2,9 +2,9 @@
 
 ## État d'implémentation
 
-Les phases 0 et 1 du plan d'implémentation fournissent le socle Python et la
-validation stricte de `yia.yml`. Pour préparer le dépôt puis exécuter les
-contrôles :
+Les phases 0 à 2 du plan d'implémentation fournissent le socle Python, la
+validation stricte de `yia.yml` et son modèle interne normalisé et déterministe.
+Pour préparer le dépôt puis exécuter les contrôles :
 
 ```bash
 python3 -m venv .venv

@@ -399,6 +399,27 @@ La normalisation peut :
 - normaliser les chemins ;
 - ordonner les structures internes de manière déterministe.
 
+En V1, le modèle normalisé applique les règles suivantes :
+
+- la racine projet et les chemins applicatifs sont résolus en chemins absolus ;
+- le répertoire public PHP est résolu depuis le chemin de son application et
+  ne peut pas en sortir ;
+- les applications sont ordonnées par identifiant ;
+- une version de framework entière ou textuelle est représentée par une chaîne ;
+- un bloc PostgreSQL sans `enabled` vaut `enabled: true` ;
+- un PostgreSQL absent ou désactivé est absent du modèle effectif ;
+- `postgres.expose` absent vaut `false` ;
+- `runtime.package_manager` absent pour Node vaut `pnpm` ;
+- le project name Compose est égal à `project.name` ;
+- les noms logiques de runtime sont `php-<version>` et `node-<version>` ;
+- le nom logique du service PostgreSQL est `postgres`.
+
+Le modèle est immuable et indépendant de Docker. Sa représentation canonique
+est un JSON UTF-8 compact dont les clés sont triées. Le hash de configuration
+est le SHA-256 hexadécimal de cette représentation. Les chemins absolus résolus
+font partie de la représentation : déplacer un projet change donc son hash,
+car ses futurs bind mounts changent également.
+
 La normalisation ne doit jamais :
 
 - inventer une version PHP ;
