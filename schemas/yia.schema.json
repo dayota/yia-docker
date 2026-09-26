@@ -57,7 +57,8 @@
             },
             "version": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "pattern": "^[0-9][0-9A-Za-z._-]*$"
             },
             "expose": {
               "type": "boolean",
@@ -119,11 +120,13 @@
           "properties": {
             "php": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "pattern": "^[0-9][0-9A-Za-z._-]*$"
             },
             "node": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "pattern": "^[0-9][0-9A-Za-z._-]*$"
             },
             "package_manager": {
               "enum": [

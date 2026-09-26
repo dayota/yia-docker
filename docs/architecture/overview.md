@@ -57,3 +57,15 @@ l'ancien snapshot en cas d'échec.
 
 Le contrat détaillé est défini dans
 [`docs/generation.md`](../generation.md).
+
+## Topologie Docker Compose
+
+Le générateur Compose produit `compose/compose.yaml` dans le snapshot runtime.
+Il matérialise un réseau privé, les services Apache et runtimes nécessaires,
+PostgreSQL lorsqu'il est activé et les volumes nommés de dépendances ou de
+données. Les noms logiques sont stables et Docker Compose applique le préfixe
+du projet aux ressources physiques.
+
+La phase Compose ne démarre aucun container. Les images et configurations de
+runtime sont fournies par les phases spécialisées suivantes. Le contrat
+détaillé est défini dans [`docs/docker.md`](../docker.md).

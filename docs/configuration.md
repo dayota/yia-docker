@@ -153,6 +153,8 @@ Contraintes :
 - un seul service PostgreSQL par projet ;
 - PostgreSQL est mutualisé entre les applications du projet ;
 - la version doit toujours être explicite ;
+- la version commence par un chiffre et ne contient que des caractères
+  compatibles avec un tag Docker (`0-9`, `A-Z`, `a-z`, `.`, `_`, `-`) ;
 - le port PostgreSQL n'est pas exposé vers l'hôte par défaut ;
 - `expose: true` autorise son exposition selon le contrat Docker.
 
@@ -240,6 +242,9 @@ runtime:
 
 Yia ne fournit pas de version PHP par défaut.
 
+La version commence par un chiffre et ne contient que des caractères
+compatibles avec un tag Docker (`0-9`, `A-Z`, `a-z`, `.`, `_`, `-`).
+
 ### 10.2. Frameworks PHP
 
 En V1, les frameworks PHP reconnus sont :
@@ -305,6 +310,9 @@ runtime:
 ```
 
 Yia ne fournit pas de version Node par défaut.
+
+La version commence par un chiffre et ne contient que des caractères
+compatibles avec un tag Docker (`0-9`, `A-Z`, `a-z`, `.`, `_`, `-`).
 
 ### 11.2. Gestionnaire de paquets
 

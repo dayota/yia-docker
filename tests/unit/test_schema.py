@@ -184,6 +184,47 @@ def test_php_runtime_rejects_node_package_manager() -> None:
         validate_config(config, SCHEMA)
 
 
+@pytest.mark.parametrize(
+    ("application_type", "runtime"),
+    [
+        ("php", {"php": "8.4/cli"}),
+        ("node", {"node": "latest"}),
+    ],
+)
+def test_runtime_versions_must_be_docker_compatible(
+    application_type: str,
+    runtime: dict[str, str],
+) -> None:
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "applications": {
+            "app": {
+                "type": application_type,
+                "path": "apps/app",
+                "runtime": runtime,
+            }
+        },
+    }
+
+    with pytest.raises(YiaError):
+        validate_config(config, SCHEMA)
+
+
+def test_postgres_version_must_be_docker_compatible() -> None:
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "services": {"postgres": {"version": "latest"}},
+        "applications": {},
+    }
+
+    with pytest.raises(YiaError):
+        validate_config(config, SCHEMA)
+
+
 @pytest.mark.parametrize("public_directory", ["../public", "/var/www/public"])
 def test_php_public_directory_must_stay_inside_application(
     tmp_path: Path,

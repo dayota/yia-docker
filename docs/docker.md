@@ -24,6 +24,11 @@ Cette sous-spécification définit le modèle d'exécution Docker de Yia V1.
 - Les UID/GID de l'utilisateur hôte sont propagés aux runtimes pour éviter les problèmes de permissions.
 - Les données persistantes ne sont jamais supprimées implicitement.
 
+La phase 5 fournit la topologie Compose et référence des tags d'images Yia
+déterministes. Le contenu et la construction de ces images, ainsi que leurs
+configurations applicatives, relèvent des phases Apache, PHP, Node et
+PostgreSQL suivantes.
+
 ---
 
 ## 3. Réseau
@@ -34,7 +39,9 @@ Tous les services du projet sont connectés à ce réseau lorsqu'ils doivent com
 
 En V1, plusieurs réseaux applicatifs ne sont pas supportés.
 
-Le nom du réseau est dérivé du project name Docker Compose.
+Le réseau logique Compose s'appelle `yia`. En l'absence de nom physique forcé,
+Docker Compose le crée sous la forme `<project>_yia`, où `<project>` est le
+champ `name` du document Compose, lui-même égal à `project.name`.
 
 ---
 
@@ -45,6 +52,10 @@ Le nom du réseau est dérivé du project name Docker Compose.
 Apache est créé lorsqu'au moins une application possède un bloc `web`.
 
 Si aucune application n'est exposée en HTTP, Apache peut être absent.
+
+Le service Compose logique s'appelle `apache`. Il utilise l'image
+`yia/apache:<version-yia>` et publie `80:80` en V1. Il dépend avec la condition
+`service_healthy` des runtimes portant les applications exposées.
 
 ### 4.2. Responsabilités
 
@@ -84,6 +95,10 @@ php-8.4
 
 Deux applications utilisant PHP 8.4 partagent donc le même runtime PHP-FPM 8.4.
 
+Le service Compose logique est `php-<version>`. Chaque source applicative est
+montée dans `/workspace/<application>` et son volume de dépendances dans
+`/workspace/<application>/vendor`.
+
 ### 5.2. Images
 
 Yia construit ses propres images PHP.
@@ -104,7 +119,8 @@ Les images et containers PHP doivent fonctionner avec les UID/GID correspondant 
 
 Les répertoires `vendor/` sont stockés dans des volumes Docker nommés lorsque le mode de montage retenu par le runtime l'exige.
 
-Le contrat final de nommage des volumes doit rester déterministe.
+La topologie V1 utilise systématiquement un volume logique
+`php-<application>-vendor` par application PHP.
 
 ### 5.6. Xdebug
 
@@ -128,6 +144,11 @@ Les applications utilisant la même version Node partagent le même runtime de b
 
 L'implémentation doit néanmoins préserver l'isolation de leurs processus et dépendances.
 
+La topologie V1 crée donc un service Compose
+`node-<version>-<application>` par application. Les services d'une même version
+utilisent tous la même image `yia/node:<version-node>-<version-yia>`, mais leurs
+processus et volumes restent distincts.
+
 ### 6.2. Images
 
 Yia construit ses propres images Node.
@@ -149,6 +170,10 @@ Une application peut sélectionner dans `yia.yml` :
 - les problèmes de permissions ;
 - les incompatibilités hôte/container ;
 - la pollution du filesystem hôte.
+
+La source est montée dans `/workspace/<application>` et le volume logique
+`node-<application>-modules` dans
+`/workspace/<application>/node_modules`.
 
 ### 6.5. UID/GID
 
@@ -184,9 +209,17 @@ expose: true
 
 Yia peut publier PostgreSQL vers l'hôte.
 
+Le service Compose logique s'appelle `postgres`. Lorsque l'exposition est
+activée, le mapping V1 est `5432:5432`.
+
 ### 7.4. Données
 
 Les données PostgreSQL sont stockées dans un volume Docker nommé persistant.
+
+Le volume logique V1 s'appelle `postgres-data`. Pour respecter le contrat de
+l'image officielle, il est monté dans `/var/lib/postgresql/data` jusqu'à
+PostgreSQL 17 inclus, puis dans `/var/lib/postgresql` à partir de PostgreSQL
+18. La version majeure correspond aux chiffres placés au début du tag.
 
 `make down`, `make update`, `make rebuild` ou `make restart` ne doivent jamais supprimer ce volume.
 
@@ -215,9 +248,14 @@ Ils sont gérés par Yia afin de préserver les performances et les permissions.
 
 ### 8.3. Nommage
 
-Les noms sont dérivés du project name Docker Compose et des identifiants de runtime/application.
+Les noms logiques sont définis dans les sections précédentes. Docker Compose
+préfixe leurs noms physiques avec le project name, par exemple
+`<project>_postgres-data`.
 
 Yia ne fixe pas `container_name`.
+
+Les sources PHP et Node sont des bind mounts absolus issus du modèle normalisé.
+Les volumes de dépendances imbriqués empêchent leur écriture sur l'hôte.
 
 ---
 
@@ -227,7 +265,7 @@ Seuls les ports nécessaires à l'accès depuis l'hôte sont publiés.
 
 Par défaut :
 
-- Apache publie le port HTTP requis ;
+- Apache publie `80:80` ;
 - Node ne publie aucun port directement ;
 - PHP-FPM ne publie aucun port directement ;
 - PostgreSQL ne publie aucun port sauf `expose: true`.
@@ -246,11 +284,27 @@ PostgreSQL peut s'appuyer sur l'image officielle correspondant à la version dem
 
 Les images Yia doivent être déterministes et versionnées par le repository Yia.
 
+Les tags référencés par la topologie V1 sont :
+
+```text
+yia/apache:<version-yia>
+yia/php:<version-php>-<version-yia>
+yia/node:<version-node>-<version-yia>
+```
+
+Les runtimes PHP et Node utilisent l'utilisateur Compose
+`${YIA_UID:-1000}:${YIA_GID:-1000}`. Ces références sont générées telles
+quelles et ne recopient aucune valeur locale dans `.yia-runtime/`.
+
 ---
 
 ## 11. Génération Compose
 
-Le fichier Compose est généré dans `.yia-runtime/`.
+Le fichier Compose est généré dans :
+
+```text
+.yia-runtime/compose/compose.yaml
+```
 
 Il est dérivé du modèle normalisé de `yia.yml`.
 
@@ -262,6 +316,10 @@ Il doit :
 - utiliser les volumes nommés ;
 - utiliser le réseau privé du projet ;
 - ne pas fixer `container_name`.
+
+Le document contient le project name Compose, une section `services`, le
+réseau logique unique `yia` et uniquement les volumes nommés effectivement
+utilisés. Les services et ressources sont triés par nom logique.
 
 ---
 
@@ -287,6 +345,18 @@ Au minimum :
 
 Le détail doit être défini par l'implémentation sans masquer les échecs.
 
+La topologie V1 configure :
+
+- Apache avec une requête HTTP locale ;
+- PHP avec `php-fpm -t` ;
+- Node avec `node --version`, remplacé par un contrôle applicatif plus précis
+  lorsque la phase Node définit sa commande d'exécution ;
+- PostgreSQL avec `pg_isready` et les variables standard de l'image, sans
+  inscrire leur valeur dans le fichier généré.
+
+Chaque healthcheck utilise un intervalle de 10 secondes, un timeout de 5
+secondes, 5 tentatives et une période initiale de 5 secondes.
+
 ---
 
 ## 14. Sécurité des données
@@ -307,7 +377,8 @@ Le modèle Docker V1 est respecté lorsque :
 - un seul réseau privé existe par projet ;
 - Apache n'existe que lorsqu'une exposition HTTP est nécessaire ;
 - PHP est mutualisé par version ;
-- Node utilise un runtime partagé par version ;
+- Node partage l'image de runtime par version tout en isolant chaque service
+  applicatif ;
 - les dépendances utilisent des volumes nommés ;
 - UID/GID hôte sont pris en compte ;
 - Xdebug est configurable par application ;

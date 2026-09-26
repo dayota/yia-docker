@@ -2,10 +2,10 @@
 
 ## État d'implémentation
 
-Les phases 0 à 4 du plan d'implémentation fournissent le socle Python, la
+Les phases 0 à 5 du plan d'implémentation fournissent le socle Python, la
 validation stricte de `yia.yml`, son modèle interne normalisé et l'état local
-reconstructible, ainsi qu'un moteur de génération déterministe. Pour préparer
-le dépôt puis exécuter les contrôles :
+reconstructible, un moteur de génération déterministe et la topologie Docker
+Compose. Pour préparer le dépôt puis exécuter les contrôles :
 
 ```bash
 python3 -m venv .venv
