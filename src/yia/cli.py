@@ -23,6 +23,7 @@ from yia.docker.runner import (
 from yia.doctor import run_checks
 from yia.errors import ErrorCode, YiaError
 from yia.initialization import initialize_project
+from yia.initialization_hooks import run_initialization_hooks
 from yia.project import (
     Project,
     generate_project,
@@ -202,6 +203,17 @@ def cmd_config(args: argparse.Namespace) -> int:
 
 def cmd_generate(args: argparse.Namespace) -> int:
     project = _project(args)
+    for application in project.config.applications:
+        if (
+            application.source is not None
+            and application.source.type == "managed"
+            and not application.path.is_dir()
+        ):
+            raise YiaError(
+                ErrorCode.CONFIG_INVALID,
+                "La source managed doit être acquise avant make generate.",
+                {"application": application.name, "suggestion": "Exécuter make init ou make update."},
+            )
     result = generate_project(project)
     emit(
         {
@@ -250,7 +262,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def cmd_update(args: argparse.Namespace) -> int:
-    project = _project(args)
+    project = load_project(args.config, require_dependencies=False)
     result = update_project(project)
     print("[OK]")
     print("Projet Yia synchronisé avec yia.yml.")
@@ -280,7 +292,9 @@ def cmd_update(args: argparse.Namespace) -> int:
 def cmd_up(args: argparse.Namespace) -> int:
     project = _project(args)
     require_current_generation(project)
-    _compose(project).up()
+    compose = _compose(project)
+    compose.up()
+    run_initialization_hooks(project.config, compose)
     return 0
 
 
@@ -293,7 +307,9 @@ def cmd_down(args: argparse.Namespace) -> int:
 def cmd_restart(args: argparse.Namespace) -> int:
     project = _project(args)
     require_current_generation(project)
-    _compose(project).restart()
+    compose = _compose(project)
+    compose.restart()
+    run_initialization_hooks(project.config, compose)
     return 0
 
 
@@ -310,6 +326,7 @@ def cmd_rebuild(args: argparse.Namespace) -> int:
     compose = _compose(project)
     compose.build(no_cache=True)
     compose.recreate()
+    run_initialization_hooks(project.config, compose)
     return 0
 
 
@@ -454,6 +471,7 @@ def cmd_reset(args: argparse.Namespace) -> int:
     compose = _compose(project)
     compose.build()
     compose.up()
+    run_initialization_hooks(project.config, compose)
     return 0
 
 

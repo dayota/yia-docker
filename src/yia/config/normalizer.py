@@ -11,17 +11,35 @@ from .model import (
     ApplicationType,
     EnvironmentConfig,
     FrameworkConfig,
+    GitSourceConfig,
     NormalizedConfig,
+    OnceHookConfig,
     PackageManager,
     PostgresConfig,
     ProjectConfig,
     RuntimeConfig,
     ServicesConfig,
+    SourceConfig,
     WebConfig,
 )
 
 
-def _normalize_services(config: Mapping[str, Any]) -> ServicesConfig:
+def _normalize_once(
+    initialization: object, *, root: Path
+) -> OnceHookConfig | None:
+    if not isinstance(initialization, Mapping):
+        return None
+    once = initialization.get("once")
+    if not isinstance(once, Mapping):
+        return None
+    return OnceHookConfig(
+        id=str(once["id"]), script=(root / str(once["script"])).resolve()
+    )
+
+
+def _normalize_services(
+    config: Mapping[str, Any], project_root: Path
+) -> ServicesConfig:
     services = config.get("services", {})
     postgres = services.get("postgres") if isinstance(services, Mapping) else None
     if not isinstance(postgres, Mapping) or not postgres.get("enabled", True):
@@ -32,6 +50,13 @@ def _normalize_services(config: Mapping[str, Any]) -> ServicesConfig:
             name="postgres",
             version=str(postgres["version"]),
             expose=bool(postgres.get("expose", False)),
+            init_sql=(
+                (project_root / str(postgres["initialization"]["sql"])).resolve()
+                if isinstance(postgres.get("initialization"), Mapping)
+                and "sql" in postgres["initialization"]
+                else None
+            ),
+            once=_normalize_once(postgres.get("initialization"), root=project_root),
         )
     )
 
@@ -114,6 +139,22 @@ def _normalize_applications(
     for name in sorted(applications):
         application = applications[name]
         application_path = (project_root / str(application["path"])).resolve()
+        source = application.get("source")
+        normalized_source = None
+        if isinstance(source, Mapping):
+            git = source.get("git")
+            normalized_source = SourceConfig(
+                type=cast(Any, source["type"]),
+                git=(
+                    GitSourceConfig(
+                        ssh=str(git["ssh"]),
+                        branch=str(git["branch"]),
+                        version=str(git["version"]),
+                    )
+                    if isinstance(git, Mapping)
+                    else None
+                ),
+            )
         normalized.append(
             ApplicationConfig(
                 name=name,
@@ -122,6 +163,10 @@ def _normalize_applications(
                 runtime=_normalize_runtime(application),
                 framework=_normalize_framework(application),
                 web=_normalize_web(application, application_path),
+                source=normalized_source,
+                once=_normalize_once(
+                    application.get("initialization"), root=application_path
+                ),
             )
         )
 
@@ -147,7 +192,7 @@ def normalize_config(
             compose_name=str(project["name"]),
         ),
         environment=EnvironmentConfig(domain=str(environment["domain"])),
-        services=_normalize_services(config),
+        services=_normalize_services(config, resolved_root),
         applications=_normalize_applications(config, resolved_root),
     )
 
@@ -159,5 +204,10 @@ def load_normalized_config(
     resolved_config_path = config_path.resolve()
     project_root = resolved_config_path.parent
     config = load_config(resolved_config_path)
-    validate_config(config, schema_path, project_root=project_root)
+    selected_schema = (
+        schema_path
+        if config.get("version") == 1
+        else schema_path.with_name("yia.v2.schema.json")
+    )
+    validate_config(config, selected_schema, project_root=project_root)
     return normalize_config(config, project_root=project_root)

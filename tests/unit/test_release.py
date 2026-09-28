@@ -20,7 +20,7 @@ def _json(path: str) -> dict:
 
 def test_release_versions_and_executable_schemas_are_coherent() -> None:
     metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    configuration = _json("schemas/yia.schema.json")
+    configuration = _json("schemas/yia.v2.schema.json")
     state = _json("schemas/yia-state.schema.json")
     manifest = _json("schemas/yia-generation-manifest.schema.json")
     documentation = (ROOT / "docs/documentation.md").read_text(encoding="utf-8")

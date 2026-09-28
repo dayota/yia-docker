@@ -185,6 +185,17 @@ En V1, `init` :
 - refuse un projet déjà complètement initialisé et recommande `make update`
   plutôt que de réinitialiser silencieusement les fichiers gérés.
 
+En V2, `init` valide d'abord la configuration sans exiger l'existence des
+destinations `managed`, puis clone leurs tags Git dans `apps/` avant la
+validation des fichiers applicatifs et la génération. Une erreur Git ne publie
+pas de dossier partiellement cloné. Les sources `linked` restent intactes.
+`init` ne démarre aucun conteneur et n'exécute donc ni SQL PostgreSQL ni
+script `initialization.once`.
+
+Le passage d'un état généré V1 à une configuration V2 requiert une migration
+explicite : `update` signale `YIA_MIGRATION_REQUIRED` jusqu'à la suppression
+volontaire des seuls artefacts reconstructibles par `make clean`.
+
 ---
 
 ## 10. `make validate`
@@ -198,6 +209,14 @@ Valide :
 Supporte `FORMAT=json`.
 
 Ne doit pas modifier le projet.
+
+Les chemins d'initialisation sont contrôlés sans exécuter leurs fichiers.
+Le script d'une application `managed` absente est contrôlé après son clonage.
+
+En V2, une destination `managed` absente est valide sur le plan déclaratif :
+`validate` ne clone pas et n'interroge pas le dépôt distant. Les dépendances
+applicatives présentes sont contrôlées ; celles d'un clone absent le seront
+après acquisition par `init` ou `update`.
 
 ---
 
@@ -214,6 +233,9 @@ Cas d'usage :
 
 Doit être idempotent.
 
+`generate` n'acquiert aucune source : les applications `managed` doivent déjà
+avoir été récupérées par `init` ou `update`.
+
 En V1, les commandes Docker `up`, `restart`, `build`, `rebuild`, `logs`,
 `shell` et `exec` exigent que cette génération soit à jour. Un runtime absent,
 modifié ou obsolète produit `YIA_GENERATION_FAILED` et recommande explicitement
@@ -229,9 +251,13 @@ Fait converger l'environnement courant vers l'état décrit dans `yia.yml`.
 Workflow attendu :
 
 ```text
-valider
+valider la configuration
   ↓
 normaliser
+  ↓
+acquérir les sources managed au tag demandé
+  ↓
+valider les fichiers applicatifs
   ↓
 générer
   ↓
@@ -245,6 +271,13 @@ healthchecks
 ```
 
 `make update` applique donc automatiquement les changements nécessaires.
+
+Après la convergence et les healthchecks, `update` vérifie l'empreinte du SQL
+PostgreSQL éventuellement déclaré puis exécute les scripts
+`initialization.once` dépourvus de marqueur. `up`, `restart`, `rebuild` et
+`reset` font le même contrôle après démarrage. Ces commandes préservent les
+marqueurs de `.yia-data/once/` ; un nouvel identifiant de hook demande une
+nouvelle exécution.
 
 Il doit être idempotent.
 

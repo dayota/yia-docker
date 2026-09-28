@@ -190,4 +190,4 @@ def test_configuration_or_documentation_schema_change_requires_migration(
 
 
 def test_compatible_state_does_not_require_migration(tmp_path: Path) -> None:
-    assert_state_compatible(_state(tmp_path))
+    assert_state_compatible(_state(tmp_path), configuration_schema_version=1)

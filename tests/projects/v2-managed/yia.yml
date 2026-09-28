@@ -1,0 +1,17 @@
+version: 2
+project:
+  name: v2-managed
+environment:
+  domain: v2-managed.localhost
+applications:
+  api:
+    type: php
+    path: apps/api
+    source:
+      type: managed
+      git:
+        ssh: git@example.invalid:team/api.git
+        branch: main
+        version: v1.0.0
+    runtime:
+      php: "8.2"

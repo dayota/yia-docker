@@ -3,7 +3,139 @@
 > **Statut :** normative  
 > **Document parent :** [`yia-spec.md`](./yia-spec.md)  
 > **Identifiant :** `YIA-SPEC-CONFIG`  
-> **Version du schéma :** 1
+> **Version du schéma courant :** 2 (V1 accepté pour migration)
+
+## Initialisation optionnelle en V2
+
+PostgreSQL peut déclarer un fichier SQL texte et/ou un script exécuté une
+seule fois après son démarrage. Une application peut aussi déclarer un script :
+
+```yaml
+version: 2
+project: {name: demo}
+environment: {domain: demo.localhost}
+services:
+  postgres:
+    version: "18"
+    initialization:
+      sql: database/initial.sql
+      once: {id: roles-v1, script: scripts/postgres-once.sh}
+applications:
+  api:
+    type: php
+    path: ../api
+    source: {type: linked}
+    runtime: {php: "8.2"}
+    initialization:
+      once: {id: setup-v1, script: scripts/setup.sh}
+```
+
+`services.postgres.initialization.sql` désigne un fichier `.sql` texte
+existant, relatif à la racine du projet et contenu dans celle-ci. Il peut
+créer des rôles, créer des bases ou restaurer un dump PostgreSQL **au format
+SQL texte**. Une archive personnalisée de `pg_dump` n'est pas acceptée : elle
+requiert `pg_restore`. Yia monte le fichier en lecture seule et l'image
+PostgreSQL l'exécute uniquement lors de la création d'un volume de données
+neuf, avec `ON_ERROR_STOP=1`, sous `POSTGRES_USER` et connectée à
+`POSTGRES_DB`. Un script qui crée une base peut utiliser `\connect` pour les
+instructions destinées à cette base. Yia n'entoure pas le fichier d'une
+transaction globale : `CREATE DATABASE` ne le permet pas.
+
+Après réussite, une empreinte du SQL est conservée **dans le volume de la
+base**. Si le volume existe sans cette empreinte (notamment après un échec
+partiel), ou si le fichier SQL change ensuite, `make up`, `make update` et
+`make doctor` le signalent. Yia ne rejoue jamais automatiquement le SQL sur
+un volume existant et ne supprime jamais ce volume. Le fichier peut contenir
+des données sensibles : Yia n'en copie ni le contenu dans le runtime ou la
+documentation, ni la valeur dans les sorties ; le projet décide s'il doit
+être ignoré par Git.
+
+`initialization.once` exige un `id` stable (`a-z`, `0-9`, tirets) et un
+`script` existant. Pour PostgreSQL, le chemin du script est relatif à la
+racine du projet, contenu dans celle-ci, puis monté en lecture seule dans le
+conteneur. Pour une application, il est relatif à son répertoire source et y
+reste contenu. Yia l'exécute avec `sh` **dans le conteneur**, après les
+healthchecks, au premier `make up` ou `make update` applicable ; `make init`
+ne démarre pas Docker et ne l'exécute donc pas. Un marqueur de succès est
+stocké dans `.yia-data/once/` : `restart`, `rebuild`, `reset` et les `update`
+suivants ne rejouent pas le script. Changer son contenu ne le relance pas ;
+changer l'`id` demande explicitement une nouvelle exécution. Après un échec,
+aucun marqueur n'est écrit et une nouvelle tentative est possible ; le
+script doit être relançable sans danger, car ses effets partiels ne peuvent
+pas être annulés automatiquement. Yia ne promet pas « exactement une fois »
+en cas d'interruption entre l'effet du script et le marqueur.
+
+## Contrat V2 — provenance des applications
+
+Tout nouveau `yia.yml` utilise `version: 2`. Chaque application conserve ses
+champs `type` (`php`, `node` ou `python`), `path`, `runtime`, `framework` et
+`web`, et ajoute obligatoirement `source`. Le `type` de `source` est distinct du
+type du runtime :
+
+```yaml
+version: 2
+project: {name: example}
+environment: {domain: example.localhost}
+applications:
+  api:
+    type: php
+    path: apps/api
+    source:
+      type: managed
+      git:
+        ssh: git@example.org:team/api.git
+        branch: main
+        version: v1.2.3
+    runtime: {php: "8.2"}
+  frontend:
+    type: node
+    path: ../frontend
+    source: {type: linked}
+    runtime: {node: "24"}
+```
+
+- `managed` exige `git.ssh`, `git.branch` et `git.version`, tous non vides.
+  `git.ssh` utilise la forme `git@hôte:chemin` ou `ssh://...`. `version` est
+  **un tag Git**, jamais une branche, un commit brut ou la version du framework.
+  Le tag doit désigner un commit appartenant à la branche indiquée. Le chemin
+  est exactement `apps/<dossier>` (un seul niveau), relatif au projet ; Yia
+  clone dans ce dossier, puis effectue un checkout détaché du tag. La branche
+  peut avancer sans modifier la version installée.
+- `linked` interdit le bloc `git`. Son chemin pointe vers un répertoire local
+  existant, relatif au projet ou absolu, et peut sortir de la racine du projet.
+  Il ne peut pas être situé sous `apps/`. Yia ne clone ni ne modifie ce code.
+- Yia refuse les chemins `managed` qui s'échappent de `apps/`, les liens
+  symboliques à cet emplacement, les répertoires occupés par une autre source
+  et les dépôts ayant des modifications locales. Il ne supprime jamais une
+  source lorsqu'une application est retirée de `yia.yml`.
+- `make validate` contrôle le schéma et les chemins sans accès réseau ni
+  clonage ; une destination `managed` encore absente est normale. `make init`
+  et `make update` acquièrent la source avant de vérifier les fichiers requis
+  par les runtimes et de générer Docker. Une erreur SSH, de branche ou de tag
+  empêche cette génération. L'agent SSH local fournit l'authentification ; les
+  clés privées et secrets ne sont pas stockés dans Yia.
+
+### Migration de V1 vers V2
+
+V1 reste lisible pour permettre une migration manuelle et inspectable ; ses
+applications existantes ne sont jamais clonées implicitement. Pour migrer,
+changer `version: 1` en `version: 2` et ajouter `source` à **chaque**
+application. Une application conservée sous `apps/` nécessite son URL SSH, sa
+branche et son tag ; sinon, déplacer son chemin hors de `apps/` et déclarer
+`source: {type: linked}`. Vérifier le diff du fichier versionné avant
+`make validate` puis `make update`. Aucun outil ne réécrit `yia.yml`
+automatiquement.
+Si `apps/<dossier>` existe sans être le dépôt Git correspondant, le déplacer
+ou l'archiver soi-même avant `make update` : Yia ne le remplacera pas.
+
+Si le projet a déjà un état `.yia-runtime/` en V1, la transition de schéma
+est signalée par `YIA_MIGRATION_REQUIRED`. Après inspection du diff et arrêt
+de l'environnement, exécuter explicitement `make clean` (qui ne supprime que
+les artefacts reconstructibles), puis `make validate` et `make update`.
+
+Les sections ci-dessous décrivent le contrat V1 historique ; les champs de
+runtime, framework, web et services continuent de s'appliquer en V2, avec les
+différences de provenance précisées ci-dessus.
 
 ## 1. Objet
 

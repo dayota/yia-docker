@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yia.local/schemas/yia.v2.schema.json",
+  "title": "Yia project configuration",
+  "description": "Configuration déclarative d'un projet utilisant Yia.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "project",
+    "environment",
+    "applications"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 2
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/hostname"
+        }
+      },
+      "required": [
+        "domain"
+      ]
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "postgres": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[0-9][0-9A-Za-z._-]*$"
+            },
+            "expose": {
+              "type": "boolean",
+              "default": false
+            },
+            "initialization": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {
+                "sql": {"$ref": "#/$defs/filePath"},
+                "once": {"$ref": "#/$defs/onceHook"}
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "applications": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/application"
+      }
+    }
+  },
+  "$defs": {
+    "filePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0000\\r\\n]+$"
+    },
+    "onceHook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "script"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "script": {"$ref": "#/$defs/filePath"}
+      }
+    },
+    "hostname": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$"
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path",
+        "runtime",
+        "source"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "php",
+            "node",
+            "python"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000\\r\\n]+$"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {"enum": ["managed", "linked"]},
+            "git": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ssh", "branch", "version"],
+              "properties": {
+                "ssh": {"type": "string", "minLength": 1, "pattern": "^(?:git@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+|ssh://[^\\s]+)$"},
+                "branch": {"type": "string", "minLength": 1, "pattern": "^[^\\s~^:?*\\[\\\\]+$"},
+                "version": {"type": "string", "minLength": 1, "pattern": "^[^\\s~^:?*\\[\\\\]+$"}
+              }
+            }
+          },
+          "allOf": [{
+            "if": {"properties": {"type": {"const": "managed"}}},
+            "then": {"required": ["git"]},
+            "else": {"not": {"required": ["git"]}}
+          }]
+        },
+        "initialization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["once"],
+          "properties": {
+            "once": {"$ref": "#/$defs/onceHook"}
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "php": {
+              "type": "string",
+              "enum": [
+                "8.2",
+                "8.4",
+                "8.5"
+              ]
+            },
+            "node": {
+              "type": "string",
+              "enum": [
+                "22",
+                "24"
+              ]
+            },
+            "python": {
+              "type": "string",
+              "enum": ["3.12"]
+            },
+            "package_manager": {
+              "enum": [
+                "pnpm",
+                "npm",
+                "yarn"
+              ],
+              "default": "pnpm"
+            },
+            "xdebug": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "minProperties": 1
+        },
+        "framework": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "enum": [
+                "laravel",
+                "symfony",
+                "nuxt",
+                "laminas",
+                "zendframework",
+                "fastapi"
+              ]
+            },
+            "version": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              ]
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "web": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "hostname": {
+              "$ref": "#/$defs/hostname"
+            },
+            "public_directory": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0000\\r\\n]+$"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "php"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runtime": {
+                "required": [
+                  "php"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "node"
+                      ]
+                    },
+                    {"required": ["python"]},
+                    {
+                      "required": [
+                        "package_manager"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "framework": {
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "laravel",
+                      "symfony",
+                      "laminas",
+                      "zendframework"
+                    ]
+                  }
+                }
+              },
+              "web": {
+                "required": [
+                  "hostname",
+                  "public_directory"
+                ],
+                "not": {
+                  "required": [
+                    "port"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "node"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runtime": {
+                "required": [
+                  "node"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "php"
+                      ]
+                    },
+                    {"required": ["python"]},
+                    {
+                      "required": [
+                        "xdebug"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "framework": {
+                "properties": {
+                  "name": {
+                    "const": "nuxt"
+                  }
+                }
+              },
+              "web": {
+                "required": [
+                  "hostname",
+                  "port"
+                ],
+                "not": {
+                  "required": [
+                    "public_directory"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {"const": "python"}
+            }
+          },
+          "then": {
+            "required": ["framework", "web"],
+            "properties": {
+              "runtime": {
+                "required": ["python"],
+                "not": {
+                  "anyOf": [
+                    {"required": ["php"]},
+                    {"required": ["node"]},
+                    {"required": ["package_manager"]},
+                    {"required": ["xdebug"]}
+                  ]
+                }
+              },
+              "framework": {
+                "properties": {"name": {"const": "fastapi"}}
+              },
+              "web": {
+                "required": ["hostname", "port"],
+                "not": {"required": ["public_directory"]}
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

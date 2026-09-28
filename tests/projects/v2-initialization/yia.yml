@@ -1,0 +1,10 @@
+version: 2
+project: {name: v2-initialization}
+environment: {domain: v2-initialization.localhost}
+services:
+  postgres:
+    version: "18"
+    initialization:
+      sql: database/initial.sql
+      once: {id: check-v1, script: scripts/once.sh}
+applications: {}

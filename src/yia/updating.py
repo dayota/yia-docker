@@ -136,14 +136,21 @@ def _assert_project_name_stable(
 
 
 def update_project(project: Project) -> UpdateResult:
+    from yia.sources import synchronize_sources
+    from yia.project import validate_project_dependencies
+
     previous_compose_existed = project.compose_path.is_file()
     previous_compose = _read_compose(project.compose_path)
     _assert_project_name_stable(project, previous_compose)
 
     state = read_state(project.root)
     if state is not None:
-        assert_state_compatible(state)
+        assert_state_compatible(
+            state, configuration_schema_version=project.config.schema_version
+        )
 
+    synchronize_sources(project.config)
+    validate_project_dependencies(project, allow_missing_managed=False)
     documentation = update_documentation(project.config)
     generation = generate_project(project)
     current_compose = _read_compose(project.compose_path)
@@ -164,6 +171,8 @@ def update_project(project: Project) -> UpdateResult:
 
     compose_applied = bool(services)
     if compose_applied:
+        from yia.initialization_hooks import run_initialization_hooks
+
         compose = compose_for_project(
             project_root=project.root,
             project_name=project.config.project.compose_name,
@@ -172,6 +181,7 @@ def update_project(project: Project) -> UpdateResult:
         )
         compose.converge()
         compose.force_recreate_services(forced_services)
+        run_initialization_hooks(project.config, compose)
 
     if not generation_is_current(project):
         raise YiaError(

@@ -90,9 +90,28 @@ def validate_project_environment(project: Project) -> None:
     )
 
 
-def validate_project_dependencies(project: Project) -> None:
+def validate_project_dependencies(
+    project: Project, *, allow_missing_managed: bool = True
+) -> None:
     errors: list[dict[str, object]] = []
     for application in project.config.applications:
+        if (
+            allow_missing_managed
+            and application.source is not None
+            and application.source.type == "managed"
+            and not application.path.exists()
+        ):
+            continue
+        if application.once is not None:
+            script = application.once.script.resolve()
+            if not script.is_relative_to(application.path) or not script.is_file():
+                errors.append(
+                    {
+                        "path": str(application.once.script),
+                        "application": application.name,
+                        "constraint": "contained_initialization_script",
+                    }
+                )
         if application.type == "python":
             for filename in ("requirements.txt", "main.py"):
                 required_path = application.path / filename
@@ -153,6 +172,7 @@ def load_project(
     config_path: str | Path,
     *,
     require_environment: bool = True,
+    require_dependencies: bool = True,
 ) -> Project:
     resolved_config_path = Path(config_path).resolve()
     config = load_normalized_config(
@@ -160,7 +180,8 @@ def load_project(
         schema_path("yia.schema.json"),
     )
     project = Project(config_path=resolved_config_path, config=config)
-    validate_project_dependencies(project)
+    if require_dependencies:
+        validate_project_dependencies(project)
     if require_environment:
         validate_project_environment(project)
     return project

@@ -16,6 +16,34 @@ HOSTNAME_PATTERN = re.compile(
 )
 
 
+def _file_error(
+    value: str,
+    *,
+    root: Path,
+    key: str,
+    allow_missing: bool = False,
+) -> dict[str, Any] | None:
+    relative = Path(value)
+    resolved = (root / relative).resolve()
+    if relative.is_absolute() or not resolved.is_relative_to(root):
+        return {
+            "path": key,
+            "message": "initialization file must be relative and contained in its source root",
+            "received": value,
+            "constraint": "contained_file",
+            "expected": "a relative file inside the project or application",
+        }
+    if not allow_missing and not resolved.is_file():
+        return {
+            "path": key,
+            "message": "initialization file does not exist",
+            "received": value,
+            "constraint": "existing_file",
+            "expected": "an existing regular file",
+        }
+    return None
+
+
 def _format_path(parts: Any) -> str:
     return ".".join(str(part) for part in parts) or "$"
 
@@ -57,7 +85,63 @@ def _semantic_errors(
         return errors
 
     hostnames: dict[str, str] = {}
+    managed_paths: dict[Path, str] = {}
     resolved_root = project_root.resolve() if project_root is not None else None
+
+    if resolved_root is not None and config.get("version") == 2:
+        services = config.get("services", {})
+        postgres = services.get("postgres") if isinstance(services, dict) else None
+        initialization = postgres.get("initialization") if isinstance(postgres, dict) else None
+        if isinstance(initialization, dict):
+            for field, value in (
+                ("sql", initialization.get("sql")),
+                (
+                    "once.script",
+                    initialization.get("once", {}).get("script")
+                    if isinstance(initialization.get("once"), dict)
+                    else None,
+                ),
+            ):
+                if isinstance(value, str):
+                    key = f"services.postgres.initialization.{field}"
+                    error = _file_error(value, root=resolved_root, key=key)
+                    if error is not None:
+                        errors.append(error)
+                    if field == "sql" and not value.endswith(".sql"):
+                        errors.append({
+                            "path": key, "message": "only plain .sql files are supported",
+                            "received": value, "constraint": "sql_extension",
+                            "expected": "a .sql text file",
+                        })
+                    elif field == "sql" and error is None:
+                        try:
+                            with (resolved_root / value).open("rb") as sql_file:
+                                signature = sql_file.read(5)
+                        except OSError as exc:
+                            errors.append({
+                                "path": key,
+                                "message": "SQL initialization file cannot be read",
+                                "received": value,
+                                "constraint": "readable_file",
+                                "expected": "a readable plain-text SQL file",
+                                "error_type": type(exc).__name__,
+                            })
+                            signature = b""
+                        if signature == b"PGDMP":
+                            errors.append({
+                                "path": key,
+                                "message": "custom pg_dump archives require pg_restore",
+                                "received": value,
+                                "constraint": "plain_sql_file",
+                                "expected": "a plain-text SQL dump or script",
+                            })
+            if postgres.get("enabled", True) is False:
+                errors.append({
+                    "path": "services.postgres.initialization",
+                    "message": "initialization requires an enabled PostgreSQL service",
+                    "received": "disabled", "constraint": "enabled_service",
+                    "expected": "postgres.enabled: true",
+                })
 
     environment = config.get("environment", {})
     domain = environment.get("domain") if isinstance(environment, dict) else None
@@ -125,7 +209,9 @@ def _semantic_errors(
 
         relative_path = Path(configured_path)
         path_key = f"applications.{name}.path"
-        if relative_path.is_absolute():
+        source = application.get("source") if config.get("version") == 2 else None
+        source_type = source.get("type") if isinstance(source, dict) else None
+        if config.get("version") == 1 and relative_path.is_absolute():
             errors.append(
                 {
                     "path": path_key,
@@ -138,7 +224,56 @@ def _semantic_errors(
             continue
 
         resolved_path = (resolved_root / relative_path).resolve()
-        if not resolved_path.is_relative_to(resolved_root):
+        apps_root = resolved_root / "apps"
+        lexical_path = resolved_root / relative_path
+        managed = source_type == "managed"
+        if managed and (
+            relative_path.is_absolute()
+            or len(relative_path.parts) != 2
+            or relative_path.parts[0] != "apps"
+            or not resolved_path.is_relative_to(apps_root)
+            or apps_root.is_symlink()
+            or lexical_path.is_symlink()
+        ):
+            errors.append(
+                {
+                    "path": path_key,
+                    "message": "managed application path must be a safe child of apps",
+                    "received": configured_path,
+                    "constraint": "managed_apps_path",
+                    "expected": "a relative, non-symlink path inside apps/",
+                }
+            )
+            continue
+        if managed:
+            previous = managed_paths.get(resolved_path)
+            if previous is not None:
+                errors.append(
+                    {
+                        "path": path_key,
+                        "message": f"managed path is already used by application {previous!r}",
+                        "received": configured_path,
+                        "constraint": "unique_managed_path",
+                        "expected": "a destination unique for each managed application",
+                    }
+                )
+                continue
+            managed_paths[resolved_path] = name
+        if source_type == "linked" and (
+            resolved_path.is_relative_to(apps_root)
+            or (not relative_path.is_absolute() and relative_path.parts[0] == "apps")
+        ):
+            errors.append(
+                {
+                    "path": path_key,
+                    "message": "linked application path must be outside apps",
+                    "received": configured_path,
+                    "constraint": "linked_path",
+                    "expected": "an existing directory outside apps/",
+                }
+            )
+            continue
+        if config.get("version") == 1 and not resolved_path.is_relative_to(resolved_root):
             errors.append(
                 {
                     "path": path_key,
@@ -148,16 +283,30 @@ def _semantic_errors(
                     "expected": "a relative path contained in the project",
                 }
             )
-        elif not resolved_path.is_dir():
+        elif not resolved_path.is_dir() and not managed:
             errors.append(
                 {
                     "path": path_key,
                     "message": "application directory does not exist",
                     "received": configured_path,
                     "constraint": "existing_directory",
-                    "expected": "an existing directory contained in the project",
+                    "expected": "an existing application directory",
                 }
             )
+
+        initialization = application.get("initialization")
+        if isinstance(initialization, dict):
+            once = initialization.get("once")
+            script = once.get("script") if isinstance(once, dict) else None
+            if isinstance(script, str):
+                error = _file_error(
+                    script,
+                    root=resolved_path,
+                    key=f"applications.{name}.initialization.once.script",
+                    allow_missing=managed and not resolved_path.is_dir(),
+                )
+                if error is not None:
+                    errors.append(error)
 
         if application.get("type") != "php" or not isinstance(web, dict):
             continue
@@ -182,7 +331,7 @@ def _semantic_errors(
                     "expected": "a relative path contained in the application",
                 }
             )
-        elif not resolved_public_path.is_dir():
+        elif not resolved_public_path.is_dir() and (not managed or resolved_path.is_dir()):
             errors.append(
                 {
                     "path": f"applications.{name}.web.public_directory",

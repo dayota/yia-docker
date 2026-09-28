@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from yia.documentation import validate_documentation
-from yia.docker.runner import project_containers
+from yia.docker.runner import compose_for_project, project_containers
 from yia.errors import YiaError
 from yia.project import Project, generation_is_current
 from yia.system import installation_checks
@@ -97,5 +97,34 @@ def run_checks(
                     ),
                 }
             )
+            if (
+                project.config.services.postgres is not None
+                and project.config.services.postgres.init_sql is not None
+                and any(
+                    container.service == "postgres" and container.state == "running"
+                    for container in containers
+                )
+                and project.compose_path.is_file()
+            ):
+                from yia.initialization_hooks import check_postgres_sql
+
+                compose = compose_for_project(
+                    project_root=project.root,
+                    project_name=project.config.project.compose_name,
+                    compose_path=project.compose_path,
+                    dotenv_path=project.dotenv_path,
+                )
+                try:
+                    check_postgres_sql(project.config, compose)
+                except YiaError as exc:
+                    checks.append({
+                        "name": "postgres-init-sql", "status": "error",
+                        "details": exc.message,
+                    })
+                else:
+                    checks.append({
+                        "name": "postgres-init-sql", "status": "ok",
+                        "details": "fichier SQL exécuté pour ce volume",
+                    })
 
     return {"status": _overall_status(checks), "checks": checks}

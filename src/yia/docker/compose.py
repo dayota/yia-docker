@@ -304,6 +304,32 @@ def _postgres_service(config: NormalizedConfig) -> dict[str, object] | None:
             ]
         ),
     }
+    if postgres.init_sql is not None:
+        service["volumes"].extend(
+            [
+                {
+                    "type": "bind",
+                    "source": postgres.init_sql.as_posix(),
+                    "target": "/yia-init/init.sql",
+                    "read_only": True,
+                },
+                {
+                    "type": "bind",
+                    "source": "../../.yia/docker/postgres/init-sql.sh",
+                    "target": "/docker-entrypoint-initdb.d/10-yia.sh",
+                    "read_only": True,
+                },
+            ]
+        )
+    if postgres.once is not None:
+        service["volumes"].append(
+            {
+                "type": "bind",
+                "source": postgres.once.script.as_posix(),
+                "target": "/yia-init/once.sh",
+                "read_only": True,
+            }
+        )
     if postgres.expose:
         service["ports"] = [
             f"{POSTGRES_CONTAINER_PORT}:{POSTGRES_CONTAINER_PORT}"

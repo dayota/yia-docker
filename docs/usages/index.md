@@ -7,6 +7,11 @@ Chaque cas est autonome et renvoie vers les variantes ou scénarios de dépannag
 pertinents. Le format, la ligne éditoriale et le suivi sont définis dans
 [la gestion du guide](../usages-management.md).
 
+Les exemples historiques en `version: 1` restent exécutables pendant la
+migration. Pour un nouveau projet, utiliser `version: 2` et déclarer la
+provenance `source` de chaque application selon
+[la spécification de configuration](../configuration.md#contrat-v2--provenance-des-applications).
+
 ## Installation et prise en main
 
 - [U01 — Vérifier les prérequis](./u01.md)
@@ -59,6 +64,7 @@ pertinents. Le format, la ligne éditoriale et le suivi sont définis dans
 - [U29 — Exposer PostgreSQL à l'hôte](./u29.md)
 - [U30 — Préserver les données PostgreSQL](./u30.md)
 - [U31 — Sauvegarder et restaurer PostgreSQL](./u31.md)
+- [U61 — Initialiser PostgreSQL et lancer des scripts une seule fois](./u61.md)
 - [U32 — Gérer `.env` et `.env.example`](./u32.md)
 - [U33 — Supprimer volontairement les données](./u33.md)
 

@@ -376,6 +376,18 @@ compte par l'image uniquement lors de l'initialisation d'un volume vide. Yia V1
 ne crée pas de bases, rôles ou permissions supplémentaires et ne migre pas une
 instance existante lorsqu'une de ces variables change.
 
+En V2, `services.postgres.initialization.sql` monte un fichier SQL texte en
+lecture seule avec un adaptateur Yia dans `/docker-entrypoint-initdb.d/`.
+L'image l'exécute sur un volume neuf ; l'adaptateur écrit son empreinte dans
+`PGDATA` uniquement après succès. Sur un volume existant, le SQL n'est pas
+rejoué. Marqueur absent ou empreinte différente : `up`, `update` et `doctor`
+signalent une erreur, sans recréer le volume. Les archives qui nécessitent
+`pg_restore` ne sont pas prises en charge par ce champ.
+
+Les scripts `initialization.once` sont exécutés dans leur conteneur après
+les healthchecks ; leurs marqueurs de succès sont conservés dans
+`.yia-data/once/`, hors des artefacts runtime générés.
+
 Depuis les autres containers du projet, PostgreSQL est joignable sur
 `postgres:5432`.
 
@@ -448,6 +460,9 @@ Yia ne fixe pas `container_name`.
 
 Les sources PHP, Node et Python sont des bind mounts absolus issus du modèle normalisé.
 Les volumes de dépendances imbriqués empêchent leur écriture sur l'hôte.
+Une application V2 `linked` peut résider hors de la racine du projet : son
+chemin absolu résolu est alors monté tel quel. Yia ne déplace et ne clone pas
+ce répertoire. Une application `managed` est montée depuis `apps/<dossier>`.
 
 ---
 

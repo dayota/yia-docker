@@ -43,7 +43,7 @@ def test_version_json_reports_commit_schemas_and_detected_tools(
     assert json.loads(captured.out) == {
         "documentation_schema": 1,
         "git_commit": "abc1234",
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "ok",
         "tools": {
             "docker": None,

@@ -198,8 +198,8 @@ def initialize_project(
     project_root = resolved_config.parent
     _verify_yia_submodule(project_root, yia_root)
 
-    # Charge et valide yia.yml et les dépendances applicatives avant toute écriture.
-    project = load_project(resolved_config, require_environment=False)
+    # La source managed peut être absente avant le clonage.
+    project = load_project(resolved_config, require_environment=False, require_dependencies=False)
     if _is_initialized(project):
         raise YiaError(
             ErrorCode.GENERIC,
@@ -210,6 +210,11 @@ def initialize_project(
             },
         )
 
+    from yia.sources import synchronize_sources
+    from yia.project import validate_project_dependencies
+
+    synchronize_sources(project.config)
+    validate_project_dependencies(project, allow_missing_managed=False)
     created, preserved = _sync_project_files(project.root)
     validate_project_environment(project)
 

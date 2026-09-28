@@ -20,6 +20,15 @@ suite end-to-end couvre les fixtures principales, leurs topologies Docker, le
 routage HTTP et les erreurs de configuration. Pour préparer le dépôt puis
 exécuter les contrôles :
 
+Le schéma `yia.yml` courant est V2 : chaque application déclare une source
+`managed` (URL SSH, branche et tag Git obligatoires, clonée sous `apps/`) ou
+`linked` (répertoire local existant, éventuellement externe au projet). Les
+configurations V1 restent lisibles pour une migration explicite ; voir
+[`docs/configuration.md`](./docs/configuration.md).
+Le schéma V2 accepte également un SQL texte exécuté lors de la création du
+volume PostgreSQL et des scripts de service ou d'application exécutés une
+seule fois après succès, avec marqueurs persistants.
+
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'

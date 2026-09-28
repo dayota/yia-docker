@@ -169,11 +169,12 @@ Les règles suivantes sont impératives.
 8. Les fichiers Docker/Compose générés ne doivent jamais être modifiés manuellement.
 9. Une modification de `yia.yml` suivie de `make update` doit converger vers l'état décrit.
 10. `make update` doit être idempotent.
-11. Une mise à jour Yia ne doit pas modifier le code métier des applications sans demande explicite.
+11. Une mise à jour Yia ne doit pas modifier le code métier des applications sans demande explicite. En configuration V2, la synchronisation d'une source `managed` vers le tag Git déclaré dans `yia.yml` est une opération explicitement demandée ; une source `linked` reste intacte.
 12. Toute destruction de données persistantes doit nécessiter une commande explicitement destructive.
 13. Une erreur de validation doit empêcher la génération ou le démarrage d'un état partiellement incohérent.
 14. Les secrets ne doivent jamais être écrits dans `yia.yml` ni dans un fichier versionné par défaut.
 15. Une commande Yia doit produire le même résultat pour un même `yia.yml`, une même version de Yia et un même ensemble d'entrées externes.
+16. Un SQL d'initialisation PostgreSQL ne doit jamais être rejoué silencieusement sur un volume existant ; un script « une seule fois » ne doit être rejoué qu'en l'absence de son marqueur de succès persistant.
 
 ---
 
@@ -322,7 +323,7 @@ Il ne décrit pas l'état courant de Docker et ne doit pas contenir de données 
 Le schéma de `yia.yml` est versionné.
 
 ```yaml
-version: 1
+version: 2
 ```
 
 Le champ `version` correspond à la version du format de configuration Yia, et non à la version du projet ni à la version du moteur Yia.
@@ -330,7 +331,7 @@ Le champ `version` correspond à la version du format de configuration Yia, et n
 ### 10.3. Exemple normatif minimal
 
 ```yaml
-version: 1
+version: 2
 
 project:
   name: my-project
@@ -347,6 +348,12 @@ applications:
   api:
     type: php
     path: apps/api
+    source:
+      type: managed
+      git:
+        ssh: git@example.org:team/api.git
+        branch: main
+        version: v1.2.3
 
     runtime:
       php: "8.4"
@@ -361,7 +368,8 @@ applications:
 
   frontend:
     type: node
-    path: apps/frontend
+    path: ../frontend
+    source: {type: linked}
 
     runtime:
       node: "24"

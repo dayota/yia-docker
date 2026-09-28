@@ -23,10 +23,21 @@ class EnvironmentConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class OnceHookConfig:
+    id: str
+    script: Path
+
+    def to_dict(self) -> dict[str, str]:
+        return {"id": self.id, "script": str(self.script)}
+
+
+@dataclass(frozen=True, slots=True)
 class PostgresConfig:
     name: str
     version: str
     expose: bool
+    init_sql: Path | None = None
+    once: OnceHookConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +68,19 @@ class WebConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class GitSourceConfig:
+    ssh: str
+    branch: str
+    version: str
+
+
+@dataclass(frozen=True, slots=True)
+class SourceConfig:
+    type: Literal["managed", "linked"]
+    git: GitSourceConfig | None
+
+
+@dataclass(frozen=True, slots=True)
 class ApplicationConfig:
     name: str
     type: ApplicationType
@@ -64,6 +88,8 @@ class ApplicationConfig:
     runtime: RuntimeConfig
     framework: FrameworkConfig | None
     web: WebConfig | None
+    source: SourceConfig | None = None
+    once: OnceHookConfig | None = None
 
     def to_dict(self) -> dict[str, Any]:
         framework = None
@@ -85,7 +111,7 @@ class ApplicationConfig:
                 "port": self.web.port,
             }
 
-        return {
+        result = {
             "name": self.name,
             "type": self.type,
             "path": str(self.path),
@@ -99,6 +125,17 @@ class ApplicationConfig:
             "framework": framework,
             "web": web,
         }
+        if self.source is not None:
+            result["source"] = {"type": self.source.type}
+            if self.source.git is not None:
+                result["source"]["git"] = {
+                    "ssh": self.source.git.ssh,
+                    "branch": self.source.git.branch,
+                    "version": self.source.git.version,
+                }
+        if self.once is not None:
+            result["initialization"] = {"once": self.once.to_dict()}
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,6 +166,13 @@ class NormalizedConfig:
                 "version": self.services.postgres.version,
                 "expose": self.services.postgres.expose,
             }
+            initialization: dict[str, Any] = {}
+            if self.services.postgres.init_sql is not None:
+                initialization["sql"] = str(self.services.postgres.init_sql)
+            if self.services.postgres.once is not None:
+                initialization["once"] = self.services.postgres.once.to_dict()
+            if initialization:
+                services["postgres"]["initialization"] = initialization
 
         return {
             "schema_version": self.schema_version,
