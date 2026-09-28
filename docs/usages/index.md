@@ -85,6 +85,11 @@ pertinents. Le format, la ligne éditoriale et le suivi sont définis dans
 - [U53 — Traiter une migration requise](./u53.md)
 - [U54 — Traiter un changement de nom de projet](./u54.md)
 
+## Maintenance du catalogue Yia
+
+- [U55 — Ajouter, modifier ou supprimer un framework pris en charge par Yia](./u55.md)
+- [U56 — Ajouter, modifier ou supprimer une version PHP ou Node prise en charge par Yia](./u56.md)
+
 ## Troubleshooting
 
 - [T01 — Dépendance, Docker ou service indisponible](./t01.md)

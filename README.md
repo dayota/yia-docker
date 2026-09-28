@@ -84,7 +84,7 @@ Yia/
     ├── usages-management.md
     ├── usages/
     │   ├── index.md
-    │   └── u01.md … u54.md, t01.md … t07.md
+    │   └── u01.md … u56.md, t01.md … t07.md
     ├── documentation.md
     ├── configuration.md
     ├── state.md

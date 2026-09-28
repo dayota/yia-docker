@@ -79,7 +79,8 @@ vers le scénario de dépannage précis au lieu d'en recopier les étapes.
 - **[U02 — Installer les prérequis sur un système APT](./usages/u02.md)** : présenter
   `make install`, les privilèges nécessaires et la vérification post-installation.
 - **[U03 — Ajouter Yia à un nouveau dépôt](./usages/u03.md)** : installer `.yia/` comme sous-module
-  Git épinglé et préparer la configuration initiale.
+  Git épinglé, préparer le premier commit, créer le dépôt GitHub puis pousser la
+  branche `main` sans publier de secret.
 - **[U04 — Initialiser un projet consommateur](./usages/u04.md)** : partir de `yia.yml`, exécuter
   `make init` et expliquer les fichiers humains et documentaires créés sans
   démarrer Docker.
@@ -222,6 +223,15 @@ vers le scénario de dépannage précis au lieu d'en recopier les étapes.
   bloqué comme migration et éviter d'abandonner silencieusement d'anciennes
   ressources Docker ; voir [T07](./usages/t07.md).
 
+### 4.9. Maintenance du catalogue Yia
+
+- **[U55 — Ajouter, modifier ou supprimer un framework pris en charge par Yia](./usages/u55.md)** :
+  maintenir les valeurs acceptées par le schéma, leurs contraintes par type,
+  les tests et les spécifications, avec migration explicite en cas de rupture.
+- **[U56 — Ajouter, modifier ou supprimer une version PHP ou Node prise en charge par Yia](./usages/u56.md)** :
+  synchroniser schéma, constantes, Dockerfiles épinglés, génération Compose,
+  fixtures, tests et documentation sans substituer silencieusement un runtime.
+
 ## 5. Troubleshooting
 
 Cette section regroupe les parcours de dépannage. Chaque scénario doit partir
@@ -264,7 +274,7 @@ spécifications et l'implémentation correspondantes n'existent pas :
 
 - Redis, Mailpit, MinIO, RabbitMQ, OpenSearch ou un service arbitraire ;
 - MySQL, MariaDB ou plusieurs instances PostgreSQL ;
-- PHP ou Node générique sans framework reconnu ;
+- frameworks PHP ou Node autres que Laravel, Symfony et Nuxt ;
 - versions PHP ou Node autres que celles supportées par le schéma V1 ;
 - extensions PHP configurables depuis `yia.yml` ;
 - plusieurs hostnames par application ;
@@ -294,7 +304,8 @@ Ordre de rédaction convenu :
 7. [x] section 4.6 — cycle de développement quotidien ;
 8. [x] section 4.7 — automatisation et versions ;
 9. [x] section 4.8 — documentation, agents et maintenance ;
-10. [x] section 5 — Troubleshooting.
+10. [x] section 5 — Troubleshooting ;
+11. [x] section 4.9 — maintenance du catalogue Yia.
 
 Après chaque bloc, tous les cas déjà documentés sont revérifiés ensemble :
 contrats utilisés, fichiers partagés, commandes, liens internes, sécurité des
