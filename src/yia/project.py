@@ -93,6 +93,18 @@ def validate_project_environment(project: Project) -> None:
 def validate_project_dependencies(project: Project) -> None:
     errors: list[dict[str, object]] = []
     for application in project.config.applications:
+        if application.type == "python":
+            for filename in ("requirements.txt", "main.py"):
+                required_path = application.path / filename
+                if not required_path.is_file():
+                    errors.append(
+                        {
+                            "path": str(required_path),
+                            "application": application.name,
+                            "constraint": "required_file",
+                        }
+                    )
+            continue
         if application.type != "node":
             continue
         package_path = application.path / "package.json"

@@ -6,7 +6,7 @@ Yia est un environnement de développement Docker composable, versionné, modula
 
 Yia est installé comme sous-module Git d'un projet consommateur. Le projet décrit l'état attendu de son environnement dans `yia.yml`, tandis que Yia fournit l'ensemble des opérations de validation, génération, démarrage, diagnostic, mise à jour et maintenance via une API Make stable.
 
-Yia doit permettre à un développeur humain ou à un agent tel que Codex de créer, modifier et maintenir des projets PHP et/ou Node/Nuxt sans devoir réapprendre l'architecture de l'environnement à chaque session.
+Yia doit permettre à un développeur humain ou à un agent tel que Codex de créer, modifier et maintenir des projets PHP, Node/Nuxt et des API FastAPI en Python sans devoir réapprendre l'architecture de l'environnement à chaque session.
 
 Le principe fondamental est déclaratif :
 
@@ -26,6 +26,7 @@ Yia doit fournir :
 - un reverse proxy Apache unique ;
 - plusieurs versions de PHP-FPM simultanément ;
 - plusieurs versions de Node simultanément ;
+- une API FastAPI en Python 3.12 derrière Apache ;
 - PostgreSQL comme base de données par défaut ;
 - des services d'infrastructure optionnels et composables ;
 - une interface Make stable pour toutes les opérations courantes ;
@@ -117,7 +118,8 @@ Exemples :
 - application Symfony ;
 - application PHP legacy ;
 - frontend Nuxt ;
-- worker Node.
+- worker Node ;
+- API FastAPI.
 
 ### 5.4. Runtime
 
@@ -125,10 +127,12 @@ Un runtime est un environnement d'exécution partagé par une ou plusieurs appli
 
 Exemples :
 
-- PHP 8.4 ;
 - PHP 8.2 ;
+- PHP 8.4 ;
+- PHP 8.5 ;
 - Node 24 ;
-- Node 22.
+- Node 22 ;
+- Python 3.12.
 
 Plusieurs applications peuvent utiliser le même runtime lorsque leur configuration est compatible.
 

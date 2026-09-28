@@ -21,7 +21,7 @@ Toute configuration non conforme au schéma actif doit être rejetée immédiate
 - La validation est stricte.
 - Le schéma est versionné.
 - Les propriétés inconnues sont interdites.
-- Les versions PHP, Node et PostgreSQL sont toujours explicites.
+- Les versions PHP, Node, Python et PostgreSQL sont toujours explicites.
 - `environment.domain` est obligatoire.
 - Les variables d'environnement applicatives sont gérées exclusivement via `.env`.
 - Les extensions PHP ne sont pas configurées dans `yia.yml`.
@@ -200,6 +200,7 @@ Les types V1 sont :
 ```text
 php
 node
+python
 ```
 
 Une application peut être exposée en HTTP ou fonctionner sans exposition HTTP.
@@ -251,6 +252,7 @@ Les versions supportées en V1 sont :
 ```text
 8.2
 8.4
+8.5
 ```
 
 La valeur doit correspondre exactement à l'une de ces versions mineures.
@@ -274,9 +276,14 @@ En V1, les frameworks PHP reconnus sont :
 ```text
 laravel
 symfony
+laminas
+zendframework
 ```
 
 Une valeur différente doit être rejetée.
+
+Le nom `zendframework` décrit une application existante. Yia ne vérifie pas la
+compatibilité de ses dépendances avec PHP 8.2 et ne migre pas son code.
 
 ### 10.3. Extensions PHP
 
@@ -409,6 +416,19 @@ réseau Docker privé.
 
 ---
 
+## 11 bis. Applications Python FastAPI
+
+Une API FastAPI déclare `type: python`, `runtime.python: "3.12"`,
+`framework.name: fastapi` et un bloc `web` avec `hostname` et `port`.
+En V1, Python 3.12 est la seule version supportée, et une application Python
+sans `web` n'est pas supportée. `public_directory`, `package_manager` et
+`xdebug` ne sont pas applicables. Le fichier `main.py` doit définir `app` et
+`requirements.txt` doit inclure FastAPI et Uvicorn, avec les versions requises
+par le projet. `make validate` vérifie la présence de ces deux fichiers ; le
+contenu des dépendances est résolu au démarrage.
+
+---
+
 ## 12. Variables d'environnement
 
 Les variables d'environnement applicatives sont gérées exclusivement via `.env`.
@@ -444,6 +464,8 @@ sortie machine.
 Pour chaque application Node, `make validate` vérifie également que le fichier
 `package.json` existe, contient un JSON valide et déclare un script `dev` non
 vide, conformément au contrat du runtime Node.
+Pour chaque application Python, `make validate` vérifie la présence de
+`main.py` et `requirements.txt`.
 
 ---
 
@@ -487,7 +509,7 @@ En V1, le modèle normalisé applique les règles suivantes :
 - `runtime.package_manager` absent pour Node vaut `pnpm` ;
 - `runtime.xdebug` absent pour PHP vaut `false` ;
 - le project name Compose est égal à `project.name` ;
-- les noms logiques de runtime sont `php-<version>` et `node-<version>` ;
+- les noms logiques de runtime sont `php-<version>`, `node-<version>` et `python-<version>` ;
 - le nom logique du service PostgreSQL est `postgres`.
 
 Le modèle est immuable et indépendant de Docker. Sa représentation canonique
@@ -613,7 +635,7 @@ Le contrat configuration V1 est respecté lorsque :
 - `environment.domain` est obligatoire ;
 - toutes les versions de runtime sont explicites ;
 - les propriétés inconnues sont rejetées ;
-- seuls Laravel, Symfony et Nuxt sont acceptés comme frameworks ;
+- seuls Laravel, Symfony, Laminas, ZendFramework, Nuxt et FastAPI sont acceptés comme frameworks ;
 - seul PostgreSQL est supporté comme service V1 ;
 - une application peut ne pas avoir de bloc `web` ;
 - un seul hostname est possible par application ;

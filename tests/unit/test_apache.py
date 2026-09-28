@@ -61,6 +61,22 @@ def test_full_fixture_generates_deterministic_php_and_node_vhosts() -> None:
     assert "SSLEngine" not in content
 
 
+def test_framework_api_vhosts_route_php_and_fastapi() -> None:
+    content = _apache_files(_fixture_config("framework-apis"))[0].content.decode()
+    assert content.count("<VirtualHost *:80>") == 3
+    assert 'ServerName "laminas.framework-apis.localhost"' in content
+    assert 'ServerName "zend.framework-apis.localhost"' in content
+    assert 'SetHandler "proxy:fcgi://php-8.2:9000"' in content
+    assert 'SetHandler "proxy:fcgi://php-8.2:9001"' in content
+    assert 'ProxyPass "/" "http://python-3.12-fastapi:8000/"' in content
+
+
+def test_php_85_vhost_routes_to_private_fpm_pool() -> None:
+    content = _apache_files(_fixture_config("php-85"))[0].content.decode()
+    assert 'ServerName "api.php-85.localhost"' in content
+    assert 'SetHandler "proxy:fcgi://php-8.5:9000"' in content
+
+
 def test_php_public_directory_is_mapped_to_the_container_workspace(
     tmp_path: Path,
 ) -> None:

@@ -112,7 +112,8 @@
         "type": {
           "enum": [
             "php",
-            "node"
+            "node",
+            "python"
           ]
         },
         "path": {
@@ -128,7 +129,8 @@
               "type": "string",
               "enum": [
                 "8.2",
-                "8.4"
+                "8.4",
+                "8.5"
               ]
             },
             "node": {
@@ -137,6 +139,10 @@
                 "22",
                 "24"
               ]
+            },
+            "python": {
+              "type": "string",
+              "enum": ["3.12"]
             },
             "package_manager": {
               "enum": [
@@ -161,7 +167,10 @@
               "enum": [
                 "laravel",
                 "symfony",
-                "nuxt"
+                "nuxt",
+                "laminas",
+                "zendframework",
+                "fastapi"
               ]
             },
             "version": {
@@ -223,6 +232,7 @@
                         "node"
                       ]
                     },
+                    {"required": ["python"]},
                     {
                       "required": [
                         "package_manager"
@@ -236,7 +246,9 @@
                   "name": {
                     "enum": [
                       "laravel",
-                      "symfony"
+                      "symfony",
+                      "laminas",
+                      "zendframework"
                     ]
                   }
                 }
@@ -276,6 +288,7 @@
                         "php"
                       ]
                     },
+                    {"required": ["python"]},
                     {
                       "required": [
                         "xdebug"
@@ -301,6 +314,36 @@
                     "public_directory"
                   ]
                 }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {"const": "python"}
+            }
+          },
+          "then": {
+            "required": ["framework", "web"],
+            "properties": {
+              "runtime": {
+                "required": ["python"],
+                "not": {
+                  "anyOf": [
+                    {"required": ["php"]},
+                    {"required": ["node"]},
+                    {"required": ["package_manager"]},
+                    {"required": ["xdebug"]}
+                  ]
+                }
+              },
+              "framework": {
+                "properties": {"name": {"const": "fastapi"}}
+              },
+              "web": {
+                "required": ["hostname", "port"],
+                "not": {"required": ["public_directory"]}
               }
             }
           }

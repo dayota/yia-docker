@@ -35,6 +35,11 @@ VALID_CASES = (
         (("api.php-only.localhost", "Yia PHP fixture: api"),),
     ),
     FixtureCase(
+        "php-85",
+        ("apache", "php-8.5"),
+        (("api.php-85.localhost", "Yia PHP fixture: 8.5"),),
+    ),
+    FixtureCase(
         "node-only",
         ("apache", "node-24-frontend"),
         (("node-only.localhost", "Yia Node fixture: frontend"),),
@@ -79,6 +84,15 @@ VALID_CASES = (
             ("legacy.monorepo.localhost", "Yia PHP fixture: legacy"),
             ("monorepo.localhost", "Yia Node fixture: frontend"),
             ("admin.monorepo.localhost", "Yia Node fixture: admin"),
+        ),
+    ),
+    FixtureCase(
+        "framework-apis",
+        ("apache", "php-8.2", "python-3.12-fastapi"),
+        (
+            ("laminas.framework-apis.localhost", "Yia Laminas fixture: 8.2"),
+            ("zend.framework-apis.localhost", "Yia Zend fixture: 8.2"),
+            ("fastapi.framework-apis.localhost", "Yia FastAPI fixture"),
         ),
     ),
 )
@@ -336,6 +350,20 @@ def test_fixture_runs_end_to_end_with_docker(
         diagnosed = _make(tmp_path, "doctor", "FORMAT=json")
         assert diagnosed.returncode == 0, diagnosed.stderr
         assert json.loads(diagnosed.stdout)["status"] == "ok"
+
+        if case.name == "php-85":
+            version = _make(tmp_path, "exec", "SERVICE=api", "CMD=php --version")
+            assert version.returncode == 0, version.stderr
+            assert "PHP 8.5." in version.stdout
+            fpm = _make(tmp_path, "exec", "SERVICE=api", "CMD=php-fpm -t")
+            assert fpm.returncode == 0, fpm.stderr
+            xdebug = _make(tmp_path, "exec", "SERVICE=api", "CMD=php -m")
+            assert xdebug.returncode == 0, xdebug.stderr
+            extensions = {line.strip().lower() for line in xdebug.stdout.splitlines()}
+            assert {
+                "bcmath", "intl", "mbstring", "zend opcache", "pcntl",
+                "pdo_mysql", "pdo_pgsql", "xdebug", "zip",
+            } <= extensions
 
         container_ids = {
             service["name"]: _container_id(service["name"]) for service in services

@@ -1,0 +1,36 @@
+version: 1
+project:
+  name: framework-apis
+environment:
+  domain: framework-apis.localhost
+applications:
+  laminas:
+    type: php
+    path: apps/laminas
+    runtime:
+      php: "8.2"
+    framework:
+      name: laminas
+    web:
+      hostname: laminas.framework-apis.localhost
+      public_directory: public
+  zend:
+    type: php
+    path: apps/zend
+    runtime:
+      php: "8.2"
+    framework:
+      name: zendframework
+    web:
+      hostname: zend.framework-apis.localhost
+      public_directory: public
+  fastapi:
+    type: python
+    path: apps/fastapi
+    runtime:
+      python: "3.12"
+    framework:
+      name: fastapi
+    web:
+      hostname: fastapi.framework-apis.localhost
+      port: 8000

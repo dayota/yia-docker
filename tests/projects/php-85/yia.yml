@@ -1,0 +1,14 @@
+version: 1
+project:
+  name: php-85
+environment:
+  domain: php-85.localhost
+applications:
+  api:
+    type: php
+    path: apps/api
+    runtime:
+      php: "8.5"
+    web:
+      hostname: api.php-85.localhost
+      public_directory: public

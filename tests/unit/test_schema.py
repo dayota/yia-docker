@@ -13,7 +13,7 @@ SCHEMA = ROOT / "schemas" / "yia.schema.json"
 
 @pytest.mark.parametrize(
     "fixture",
-    ["minimal", "php-only", "node-only", "php-node", "multi-php", "postgres", "full"],
+    ["minimal", "php-only", "php-85", "node-only", "php-node", "multi-php", "postgres", "full", "framework-apis"],
 )
 def test_valid_fixtures(fixture: str) -> None:
     project_root = ROOT / "tests" / "projects" / fixture
@@ -246,7 +246,7 @@ def test_web_configuration_must_match_application_type(
         validate_config(config, SCHEMA)
 
 
-@pytest.mark.parametrize("version", ["8.1", "8.3", "8.5", "latest"])
+@pytest.mark.parametrize("version", ["8.1", "8.3", "8.6", "latest"])
 def test_php_runtime_version_must_be_supported(version: str) -> None:
     config = {
         "version": 1,
@@ -280,6 +280,36 @@ def test_node_runtime_version_must_be_supported(version: str) -> None:
         },
     }
 
+    with pytest.raises(YiaError):
+        validate_config(config, SCHEMA)
+
+
+@pytest.mark.parametrize(
+    ("runtime", "framework", "web"),
+    [
+        ({"python": "3.13"}, "fastapi", {"hostname": "api.demo.localhost", "port": 8000}),
+        ({"python": "3.12", "node": "24"}, "fastapi", {"hostname": "api.demo.localhost", "port": 8000}),
+        ({"python": "3.12"}, "nuxt", {"hostname": "api.demo.localhost", "port": 8000}),
+        ({"python": "3.12"}, "fastapi", {"hostname": "api.demo.localhost", "public_directory": "public"}),
+    ],
+)
+def test_python_contract_rejects_invalid_combinations(
+    runtime: dict[str, str], framework: str, web: dict[str, object]
+) -> None:
+    config = {
+        "version": 1,
+        "project": {"name": "demo"},
+        "environment": {"domain": "demo.localhost"},
+        "applications": {
+            "api": {
+                "type": "python",
+                "path": "apps/api",
+                "runtime": runtime,
+                "framework": {"name": framework},
+                "web": web,
+            }
+        },
+    }
     with pytest.raises(YiaError):
         validate_config(config, SCHEMA)
 

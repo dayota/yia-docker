@@ -283,10 +283,17 @@ def render_development_environment(config: NormalizedConfig) -> str:
                     f"dépendances de `{application.name}`",
                 )
             )
-        else:
+        elif application.type == "node":
             volume_rows.append(
                 (
                     f"`node-{application.name}-modules`",
+                    f"dépendances de `{application.name}`",
+                )
+            )
+        else:
+            volume_rows.append(
+                (
+                    f"`python-{application.name}-venv`",
                     f"dépendances de `{application.name}`",
                 )
             )

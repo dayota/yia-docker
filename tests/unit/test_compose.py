@@ -36,11 +36,13 @@ def _compose_payload(config: NormalizedConfig) -> tuple[bytes, dict[str, object]
     [
         "minimal",
         "php-only",
+        "php-85",
         "node-only",
         "php-node",
         "multi-php",
         "postgres",
         "full",
+        "framework-apis",
     ],
 )
 def test_applicable_fixtures_generate_deterministic_compose(fixture: str) -> None:
@@ -64,11 +66,13 @@ def test_applicable_fixtures_generate_deterministic_compose(fixture: str) -> Non
     [
         "minimal",
         "php-only",
+        "php-85",
         "node-only",
         "php-node",
         "multi-php",
         "postgres",
         "full",
+        "framework-apis",
     ],
 )
 def test_applicable_fixtures_are_valid_docker_compose(
@@ -202,6 +206,45 @@ def test_full_topology_contains_expected_services_volumes_and_ports() -> None:
             "target": "/var/lib/postgresql",
         }
     ]
+
+
+def test_framework_api_topology_uses_shared_php_and_private_python() -> None:
+    _, compose = _compose_payload(_fixture_config("framework-apis"))
+    assert list(compose["services"]) == [
+        "apache", "php-8.2", "python-3.12-fastapi",
+    ]
+    assert list(compose["volumes"]) == [
+        "php-laminas-vendor", "php-zend-vendor", "python-fastapi-venv",
+    ]
+    assert compose["services"]["apache"]["depends_on"] == {
+        "php-8.2": {"condition": "service_healthy"},
+        "python-3.12-fastapi": {"condition": "service_healthy"},
+    }
+    python = compose["services"]["python-3.12-fastapi"]
+    assert python["expose"] == ["8000"]
+    assert "ports" not in python
+    assert python["volumes"][1] == {
+        "type": "volume",
+        "source": "python-fastapi-venv",
+        "target": "/workspace/fastapi/.venv",
+    }
+
+
+def test_php_85_compose_uses_pinned_build_private_fpm_and_vendor_volume() -> None:
+    _, compose = _compose_payload(_fixture_config("php-85"))
+    assert list(compose["services"]) == ["apache", "php-8.5"]
+    php = compose["services"]["php-8.5"]
+    assert php["image"] == "yia/php:8.5-0.1.0"
+    assert php["build"] == {
+        "context": "../../.yia/docker/php",
+        "dockerfile": "8.5/Dockerfile",
+    }
+    assert php["expose"] == ["9000"]
+    assert "ports" not in php
+    assert "php-api-vendor" in compose["volumes"]
+    assert compose["services"]["apache"]["depends_on"] == {
+        "php-8.5": {"condition": "service_healthy"},
+    }
 
 
 def test_apache_is_generated_only_for_http_applications(tmp_path: Path) -> None:

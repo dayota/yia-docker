@@ -44,6 +44,14 @@ def test_php_generates_one_deterministic_configuration_per_runtime() -> None:
     assert "[api]" in first[1].content.decode("utf-8")
 
 
+def test_php_85_generates_a_pool_with_the_existing_contract() -> None:
+    files = _php_files(_fixture_config("php-85"))
+    assert len(files) == 1
+    assert files[0].path == "php/8.5/fpm-pools.conf"
+    assert "[api]" in files[0].content.decode("utf-8")
+    assert "listen = 0.0.0.0:9000" in files[0].content.decode("utf-8")
+
+
 def test_shared_runtime_isolates_pools_ports_and_xdebug(tmp_path: Path) -> None:
     for name in ("api", "worker"):
         (tmp_path / "apps" / name).mkdir(parents=True)
@@ -144,6 +152,7 @@ def test_php_images_are_pinned_and_define_required_runtime_tools() -> None:
     expected_bases = {
         "8.2": "php:8.2.33-fpm-alpine3.24",
         "8.4": "php:8.4.25-fpm-alpine3.24",
+        "8.5": "php:8.5.11-fpm-alpine3.24",
     }
     for version, base in expected_bases.items():
         dockerfile = (ROOT / "docker" / "php" / version / "Dockerfile").read_text(
@@ -155,13 +164,16 @@ def test_php_images_are_pinned_and_define_required_runtime_tools() -> None:
             "bcmath",
             "intl",
             "mbstring",
-            "opcache",
             "pcntl",
             "pdo_mysql",
             "pdo_pgsql",
             "zip",
         ):
             assert extension in dockerfile
+        if version == "8.5":
+            assert 'extension_loaded("Zend OPcache")' in dockerfile
+        else:
+            assert "opcache" in dockerfile
         assert "xdebug-3.5.3" in dockerfile
 
     xdebug = (ROOT / "docker" / "php" / "xdebug.ini").read_text(

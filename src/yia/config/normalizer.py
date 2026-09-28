@@ -64,6 +64,16 @@ def _normalize_runtime(application: Mapping[str, Any]) -> RuntimeConfig:
             xdebug=bool(runtime.get("xdebug", False)),
         )
 
+    if application_type == "python":
+        version = str(runtime["python"])
+        return RuntimeConfig(
+            name=f"python-{version}",
+            type="python",
+            version=version,
+            package_manager=None,
+            xdebug=None,
+        )
+
     version = str(runtime["node"])
     return RuntimeConfig(
         name=f"node-{version}",

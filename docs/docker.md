@@ -71,6 +71,7 @@ Apache :
 - route les hostnames vers les applications ;
 - relaie les applications PHP vers PHP-FPM ;
 - agit comme reverse proxy vers les applications Node ;
+- agit comme reverse proxy vers les API FastAPI ;
 - n'utilise pas HTTPS en V1.
 
 La V1 écoute exclusivement en HTTP sur le port interne et hôte `80`. Elle ne
@@ -127,6 +128,12 @@ Le paramètre `upgrade=websocket` de `mod_proxy_http` est activé afin de laisse
 passer les connexions Upgrade/WebSocket, notamment celles utilisées par le
 rechargement à chaud. Aucun port Node n'est publié sur l'hôte.
 
+### 4.7. Applications Python
+
+Pour une API FastAPI, Apache transmet `/` au service logique
+`python-3.12-<application>` sur `web.port`. Le header `Host` est préservé.
+Aucun port Python n'est publié sur l'hôte.
+
 ---
 
 ## 5. PHP-FPM
@@ -167,6 +174,7 @@ officielles épinglées sont :
 |---|---|
 | PHP 8.2 | `php:8.2.33-fpm-alpine3.24` |
 | PHP 8.4 | `php:8.4.25-fpm-alpine3.24` |
+| PHP 8.5 | `php:8.5.11-fpm-alpine3.24` |
 
 Chaque runtime possède son Dockerfile sous `docker/php/<version>/`. Le contexte
 de build commun est `docker/php/`.
@@ -175,6 +183,8 @@ Les extensions installées sont fixes en V1 : `bcmath`, `intl`, `mbstring`,
 `opcache`, `pcntl`, `pdo_mysql`, `pdo_pgsql`, `xdebug` et `zip`. Elles ne sont
 pas configurables dans `yia.yml`. Xdebug est installé avec le seul mode
 `debug`, mais le démarrage d'une session est désactivé globalement.
+Dans l'image PHP 8.5, OPcache est déjà compilé dans PHP ; le Dockerfile vérifie
+sa présence sans tenter de le reconstruire comme extension partagée.
 
 ### 5.3. Composer
 
@@ -316,6 +326,24 @@ processus principal du container existe encore.
 
 ---
 
+## 6 bis. Python FastAPI
+
+Une application FastAPI utilise un service Compose dédié nommé
+`python-3.12-<application>`, construit depuis
+`docker/python/3.12/Dockerfile` sur `python:3.12.12-slim-bookworm`.
+La source est montée dans `/workspace/<application>`. Le volume nommé
+`python-<application>-venv` est monté dans `.venv`, sans écrire de dépendances
+sur l'hôte. L'entrypoint aligne l'utilisateur `yia` sur `YIA_UID` et
+`YIA_GID` et ne change que le propriétaire de la racine du volume.
+
+Au démarrage, `pip install -r requirements.txt` installe les dépendances
+déclarées dans ce volume. Uvicorn lance `main:app` en mode développement,
+écoute `0.0.0.0` sur `web.port` et recharge le code modifié. Le healthcheck
+contrôle une connexion TCP locale au port déclaré. Le port reste privé ; Apache
+est l'unique point d'entrée HTTP. Le service exige `main.py` et
+`requirements.txt` dans la racine applicative. `PYTHONDONTWRITEBYTECODE=1`
+empêche l'écriture de caches Python dans les sources montées.
+
 ## 7. PostgreSQL
 
 ### 7.1. Instance
@@ -418,7 +446,7 @@ préfixe leurs noms physiques avec le project name, par exemple
 
 Yia ne fixe pas `container_name`.
 
-Les sources PHP et Node sont des bind mounts absolus issus du modèle normalisé.
+Les sources PHP, Node et Python sont des bind mounts absolus issus du modèle normalisé.
 Les volumes de dépendances imbriqués empêchent leur écriture sur l'hôte.
 
 ---
@@ -431,6 +459,7 @@ Par défaut :
 
 - Apache publie `80:80` ;
 - Node ne publie aucun port directement ;
+- Python ne publie aucun port directement ;
 - PHP-FPM ne publie aucun port directement ;
 - PostgreSQL ne publie aucun port sauf `expose: true`.
 
@@ -443,6 +472,7 @@ Yia construit ses propres images pour :
 - Apache ;
 - PHP ;
 - Node.
+- Python.
 
 PostgreSQL peut s'appuyer sur l'image officielle correspondant à la version demandée.
 
@@ -454,9 +484,10 @@ Les tags référencés par la topologie V1 sont :
 yia/apache:<version-yia>
 yia/php:<version-php>-<version-yia>
 yia/node:<version-node>-<version-yia>
+yia/python:<version-python>-<version-yia>
 ```
 
-Les runtimes Node et PHP transmettent séparément `${YIA_UID:-1000}` et
+Les runtimes Node, PHP et Python transmettent séparément `${YIA_UID:-1000}` et
 `${YIA_GID:-1000}` à leurs entrypoints afin de préparer leurs volumes avant de
 démarrer leurs processus non-root. Ces références sont générées telles quelles
 et ne recopient aucune valeur locale dans `.yia-runtime/`.

@@ -21,6 +21,11 @@ from .php import (
     php_applications_by_runtime,
     php_configuration_path,
 )
+from .python import (
+    PYTHON_BUILD_CONTEXT,
+    PYTHON_HEALTHCHECK_CONTAINER_PATH,
+    python_service_name,
+)
 from .postgres import (
     POSTGRES_CONTAINER_PORT,
     POSTGRES_DATA_VOLUME,
@@ -93,6 +98,8 @@ def _apache_service(config: NormalizedConfig) -> dict[str, object] | None:
             application.runtime.name
             if application.type == "php"
             else node_service_name(application)
+            if application.type == "node"
+            else python_service_name(application)
         )
         for application in web_applications
     }
@@ -236,6 +243,44 @@ def _node_services(
     return services, volumes
 
 
+def _python_services(
+    config: NormalizedConfig,
+) -> tuple[dict[str, dict[str, object]], set[str]]:
+    services: dict[str, dict[str, object]] = {}
+    volumes: set[str] = set()
+    for application in config.applications:
+        if application.type != "python":
+            continue
+        if application.web is None or application.web.port is None:
+            raise ValueError("Python application requires a web port")
+        volume_name = f"python-{application.name}-venv"
+        volumes.add(volume_name)
+        services[python_service_name(application)] = {
+            "image": f"yia/python:{application.runtime.version}-{YIA_VERSION}",
+            "build": {
+                "context": PYTHON_BUILD_CONTEXT,
+                "dockerfile": f"{application.runtime.version}/Dockerfile",
+            },
+            "environment": {
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "YIA_GID": "${YIA_GID:-1000}",
+                "YIA_PYTHON_PORT": str(application.web.port),
+                "YIA_UID": "${YIA_UID:-1000}",
+            },
+            "working_dir": _application_target(application),
+            "volumes": [
+                _bind_mount(application),
+                _dependency_mount(application, source=volume_name, directory=".venv"),
+            ],
+            "networks": [NETWORK_NAME],
+            "expose": [str(application.web.port)],
+            "healthcheck": _healthcheck(
+                ["CMD", "python", PYTHON_HEALTHCHECK_CONTAINER_PATH]
+            ),
+        }
+    return services, volumes
+
+
 def _postgres_service(config: NormalizedConfig) -> dict[str, object] | None:
     postgres = config.services.postgres
     if postgres is None:
@@ -281,6 +326,10 @@ def _compose_model(config: NormalizedConfig) -> dict[str, object]:
     node_services, node_volumes = _node_services(config)
     services.update(node_services)
     volumes.update(node_volumes)
+
+    python_services, python_volumes = _python_services(config)
+    services.update(python_services)
+    volumes.update(python_volumes)
 
     postgres = _postgres_service(config)
     if postgres is not None:

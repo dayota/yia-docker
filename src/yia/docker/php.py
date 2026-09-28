@@ -10,7 +10,7 @@ from yia.generators import GeneratedFile, GenerationContext
 PHP_FPM_BASE_PORT = 9000
 PHP_FPM_CONFIG_CONTAINER_PATH = "/usr/local/etc/php-fpm.d/yia-pools.conf"
 PHP_BUILD_CONTEXT = "../../.yia/docker/php"
-SUPPORTED_PHP_VERSIONS = ("8.2", "8.4")
+SUPPORTED_PHP_VERSIONS = ("8.2", "8.4", "8.5")
 
 
 def php_configuration_path(version: str) -> str:

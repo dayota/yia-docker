@@ -7,7 +7,7 @@ Les phases 0 à 15 du plan d'implémentation fournissent la version stabilisée
 validation stricte de `yia.yml`, son modèle interne normalisé et l'état local
 reconstructible, un moteur de génération déterministe et la topologie Docker
 Compose avec son point d'entrée HTTP Apache, ses runtimes PHP-FPM et ses
-runtimes de développement Node/Nuxt, ainsi qu'un service PostgreSQL persistant
+runtimes de développement Node/Nuxt et une API FastAPI en Python 3.12, ainsi qu'un service PostgreSQL persistant
 initialisé depuis les variables du fichier `.env`, ainsi que l'API Make V1 et
 ses primitives de génération, diagnostic et cycle de vie Docker. Le système
 documentaire projet installe aussi les skills `project-docs` et
@@ -84,7 +84,7 @@ Yia/
     ├── usages-management.md
     ├── usages/
     │   ├── index.md
-    │   └── u01.md … u56.md, t01.md … t07.md
+    │   └── u01.md … u60.md, t01.md … t07.md
     ├── documentation.md
     ├── configuration.md
     ├── state.md
@@ -261,7 +261,7 @@ Périmètre prévu :
 - un container ou runtime est ajouté ;
 - la topologie réseau change ;
 - un volume ou un port est modifié ;
-- Apache, PHP, Node ou PostgreSQL sont concernés ;
+- Apache, PHP, Node, Python ou PostgreSQL sont concernés ;
 - la génération Compose évolue.
 
 

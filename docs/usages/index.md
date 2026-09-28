@@ -27,6 +27,13 @@ pertinents. Le format, la ligne éditoriale et le suivi sont définis dans
 - [U13 — Activer Xdebug pour une seule application](./u13.md)
 - [U14 — Gérer les dépendances Composer](./u14.md)
 - [U15 — Exécuter les commandes d'un framework PHP](./u15.md)
+- [U57 — Exposer une API Laminas en PHP 8.2](./u57.md)
+- [U58 — Exposer une application ZendFramework en PHP 8.2](./u58.md)
+- [U60 — Exposer une application avec PHP 8.5](./u60.md)
+
+## Applications Python
+
+- [U59 — Exposer une API FastAPI en Python 3.12](./u59.md)
 
 ## Applications Node et Nuxt
 

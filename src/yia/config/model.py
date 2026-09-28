@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 
-ApplicationType = Literal["php", "node"]
+ApplicationType = Literal["php", "node", "python"]
 PackageManager = Literal["pnpm", "npm", "yarn"]
 
 

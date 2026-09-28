@@ -11,6 +11,7 @@ from yia.config import NormalizedConfig
 from yia.errors import ErrorCode, YiaError
 
 from .node import node_service_name
+from .python import python_service_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,8 +222,10 @@ def resolve_service(config: NormalizedConfig, requested: str) -> str:
     for application in config.applications:
         if application.type == "php":
             service = application.runtime.name
-        else:
+        elif application.type == "node":
             service = node_service_name(application)
+        else:
+            service = python_service_name(application)
         add(service, service)
         add(application.name, service)
         add(application.runtime.name, service)

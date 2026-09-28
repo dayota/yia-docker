@@ -112,6 +112,13 @@ vers le scénario de dépannage précis au lieu d'en recopier les étapes.
   dépendances dans le container sans écrire `vendor/` sur l'hôte.
 - **[U15 — Exécuter les commandes d'un framework PHP](./usages/u15.md)** : illustrer Artisan et la
   console Symfony via une cible logique Yia.
+- **[U57 — Exposer une API Laminas en PHP 8.2](./usages/u57.md)** : utiliser le routage FastCGI, le contrôleur frontal et Composer.
+- **[U58 — Exposer une application ZendFramework en PHP 8.2](./usages/u58.md)** : router une application existante et vérifier séparément la compatibilité de ses dépendances.
+- **[U60 — Exposer une application avec PHP 8.5](./usages/u60.md)** : valider le nouveau runtime, le routage FastCGI et l'idempotence.
+
+### 4.2.1. Applications Python
+
+- **[U59 — Exposer une API FastAPI en Python 3.12](./usages/u59.md)** : lancer Uvicorn derrière Apache avec des dépendances en volume et un port privé.
 
 ### 4.3. Applications Node et Nuxt
 
@@ -274,8 +281,8 @@ spécifications et l'implémentation correspondantes n'existent pas :
 
 - Redis, Mailpit, MinIO, RabbitMQ, OpenSearch ou un service arbitraire ;
 - MySQL, MariaDB ou plusieurs instances PostgreSQL ;
-- frameworks PHP ou Node autres que Laravel, Symfony et Nuxt ;
-- versions PHP ou Node autres que celles supportées par le schéma V1 ;
+- frameworks autres que Laravel, Symfony, Laminas, ZendFramework, Nuxt et FastAPI ;
+- versions PHP, Node ou Python autres que celles supportées par le schéma V1 ;
 - extensions PHP configurables depuis `yia.yml` ;
 - plusieurs hostnames par application ;
 - HTTPS local, port HTTP Apache configurable ou exposition directe des runtimes ;
