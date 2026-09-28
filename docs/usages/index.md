@@ -86,6 +86,7 @@ provenance `source` de chaque application selon
 
 - [U45 — Automatiser les contrôles en CI locale](./u45.md)
 - [U46 — Vérifier la version de l'environnement](./u46.md)
+- [U62 — Publier une nouvelle version de Yia](./u62.md)
 
 ## Documentation, agents et maintenance
 

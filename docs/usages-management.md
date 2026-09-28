@@ -207,6 +207,9 @@ vers le scénario de dépannage précis au lieu d'en recopier les étapes.
   et `version`.
 - **[U46 — Vérifier la version de l'environnement](./usages/u46.md)** : relever la version Yia,
   le commit du sous-module, les versions de schémas et celles des outils.
+- **[U62 — Publier une nouvelle version de Yia](./usages/u62.md)** : aligner les deux versions
+  du moteur, vérifier tests et contrats, puis publier un commit et un tag Git
+  après contrôle explicite du dépôt distant.
 
 ### 4.8. Documentation, agents et maintenance
 
