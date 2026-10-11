@@ -42,6 +42,30 @@
         "domain"
       ]
     },
+    "traefik": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network"],
+      "properties": {
+        "network": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$", "not": {"pattern": "[\\r\\n]"}},
+        "containers": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[a-z0-9][a-z0-9.-]*$"},
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "expose": {"type": "boolean", "default": false},
+              "labels": {
+                "type": "object",
+                "propertyNames": {"pattern": "^traefik\\.[a-z0-9][a-z0-9_.-]*$", "not": {"pattern": "[\\r\\n]"}},
+                "additionalProperties": {"type": "string", "not": {"pattern": "[\\u0000-\\u001f\\u007f$]"}}
+              }
+            }
+          }
+        }
+      }
+    },
     "services": {
       "type": "object",
       "additionalProperties": false,

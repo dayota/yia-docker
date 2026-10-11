@@ -179,6 +179,10 @@ vers le scénario de dépannage précis au lieu d'en recopier les étapes.
 
 ### 4.6. Cycle de développement quotidien
 
+- **[U65 — Configurer les conteneurs pour Traefik externe](./usages/u65.md)** :
+  déclarer un réseau partagé, renseigner les labels par conteneur et autoriser
+  explicitement chaque exposition, avec Apache conservé pour les applications.
+
 - **[U64 — Initialiser et déverrouiller OpenBao persistant](./usages/u64.md)** :
   configurer une instance Raft privée, effectuer les opérations manuelles,
   vérifier les diagnostics et préserver les données lors des redémarrages.
@@ -296,7 +300,7 @@ spécifications et l'implémentation correspondantes n'existent pas :
 - versions PHP, Node ou Python autres que celles supportées par le schéma V1 ;
 - extensions PHP configurables depuis `yia.yml` ;
 - plusieurs hostnames par application ;
-- HTTPS local, port HTTP Apache configurable ou exposition directe des runtimes ;
+- gestion HTTPS locale par Yia, port HTTP Apache configurable ou exposition directe des runtimes ;
 - déploiement de production, orchestration multi-hôtes ou Kubernetes ;
 - migration automatique et silencieuse de `yia.yml` ;
 - installation automatique sur un système non APT.

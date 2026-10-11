@@ -439,6 +439,22 @@ def _compose_model(config: NormalizedConfig) -> dict[str, object]:
     }
     if volumes:
         compose["volumes"] = {name: {} for name in sorted(volumes)}
+    if config.traefik is not None:
+        targets = {target.name: target for target in config.traefik.containers}
+        compose["networks"]["traefik"] = {
+            "external": True, "name": config.traefik.network,
+        }
+        for name, service in services.items():
+            target = targets.get(name)
+            exposed = target is not None and target.expose
+            labels = dict(target.labels) if target is not None else {}
+            labels["traefik.enable"] = str(exposed).lower()
+            if exposed:
+                service["networks"].append("traefik")
+                labels["traefik.docker.network"] = config.traefik.network
+            service["labels"] = dict(sorted(labels.items()))
+        if "apache" in services:
+            services["apache"].pop("ports", None)
     return compose
 
 

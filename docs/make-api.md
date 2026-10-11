@@ -496,6 +496,21 @@ make exec SERVICE=api CMD="php artisan migrate"
 
 ## 24. `make config`
 
+### Traefik externe en V2
+
+`validate` contrôle les cibles et autorisations Traefik sans accès Docker.
+`init` et `generate` produisent les labels et le réseau externe sans le créer.
+`config` expose le bloc effectif, uniquement composé de valeurs non sensibles.
+`up` et `update` échouent si le réseau externe déclaré n'existe pas ; l'erreur
+Docker reste structurée selon le contrat existant. `doctor FORMAT=json` ajoute
+un check `traefik-network` lorsque Docker est accessible, en erreur si ce réseau
+est absent ou inaccessible. Il ne teste ni le proxy externe, ni TLS.
+`status` conserve ses URLs HTTP issues des blocs applicatifs `web` ; il ne
+déduit pas les URLs HTTPS des labels libres. Aucune nouvelle cible Make n'est
+ajoutée. Les commandes destructives conservent le réseau externe.
+
+### Configuration effective
+
 Affiche la configuration normalisée et résolue de Yia.
 
 Cette commande sert à comprendre ce que Yia a réellement interprété après :

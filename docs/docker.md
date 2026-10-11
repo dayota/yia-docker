@@ -34,6 +34,31 @@ PostgreSQL et sa persistance.
 
 ## 3. Réseau
 
+### Exception V2 : Traefik externe
+
+Le bloc `traefik` conserve le réseau privé `yia` et déclare un second réseau
+logique `traefik`, avec `external: true` et `name` égal au réseau physique
+explicite. Seuls les services autorisés par `containers.<service>.expose: true`
+y sont connectés. Tous portent `traefik.enable=true` ou `false` selon cette
+autorisation ; les services exposés portent aussi `traefik.docker.network`.
+Ces valeurs gérées ne peuvent pas être contredites par les labels explicites.
+Les labels utilisateur sont limités à `traefik.*`, triés et conservés comme
+chaînes littérales, conformément à `configuration.md`.
+
+Apache reste le point d'entrée HTTP **interne** des applications. Traefik est
+le point d'entrée externe ; Apache conserve son port interne 80, ses vhosts,
+ses dépendances et son healthcheck mais ne publie plus `80:80`. PHP-FPM,
+Node et Python ne rejoignent pas le réseau partagé. Les services d'infrastructure
+peuvent y être connectés individuellement par autorisation explicite ; cela
+ne publie aucun port hôte et ne désactive aucune authentification.
+
+Yia ne crée ni conteneur Traefik, ni socket Docker, ni configuration statique
+du proxy. Le réseau doit déjà exister. `down`, `reset`, `destroy` et
+`destroy-data` ne le suppriment pas : Compose le considère externe.
+Sans bloc `traefik`, la topologie et les labels existants restent inchangés.
+
+### Réseau privé par défaut
+
 Chaque projet possède un réseau Docker privé unique.
 
 Tous les services du projet sont connectés à ce réseau lorsqu'ils doivent communiquer entre eux.
@@ -475,7 +500,10 @@ Une instance Raft unique stocke ses données dans `/openbao/file`, monté depuis
 le volume nommé `openbao-data`. Son identifiant stable est `openbao`.
 L'adresse API est `http://openbao:8200`, l'adresse cluster est
 `http://openbao:8201`. Seul le réseau privé `yia` est utilisé ; aucun port
-8200 ou 8201 n'est publié, aucun vhost Apache n'est généré. HTTP sans TLS est
+8200 ou 8201 n'est publié, aucun vhost Apache n'est généré. Une autorisation
+`traefik.containers.openbao.expose: true` ajoute le réseau partagé et les labels
+explicites selon le contrat Traefik V2 ; sans elle, OpenBao reste privé.
+HTTP sans TLS est
 réservé à ce réseau de développement local. L'interface web est désactivée.
 Avec Raft, `disable_mlock: true` évite d'exiger des capacités Docker
 supplémentaires. L'entrypoint officiel prépare les permissions du volume et

@@ -5,6 +5,72 @@
 > **Identifiant :** `YIA-SPEC-CONFIG`  
 > **Version du schéma courant :** 2 (V1 accepté pour migration)
 
+## Traefik externe optionnel en V2
+
+Le bloc racine `traefik` active l'intégration avec un Traefik externe utilisant
+le provider Docker. Yia ne démarre pas Traefik, ne monte pas le socket Docker,
+ne crée pas le réseau externe et ne gère pas les certificats.
+
+```yaml
+traefik:
+  network: proxy
+  containers:
+    apache:
+      expose: true
+      labels:
+        traefik.http.routers.demo.rule: Host(`demo.localhost`)
+        traefik.http.routers.demo.entrypoints: web
+        traefik.http.routers.demo.service: demo
+        traefik.http.services.demo.loadbalancer.server.port: "80"
+```
+
+`network` est obligatoire : nom physique Docker existant, composé de lettres,
+chiffres, points, tirets ou underscores, commençant par une lettre ou un chiffre.
+Il doit être distinct du réseau privé `<project>_yia`. `containers` est un
+objet optionnel indexé par les noms **logiques Compose générés** : `apache`,
+`php-8.4`, `node-24-frontend`, `python-3.12-api`, `postgres`, `redis`, `openbao`,
+selon la configuration effective. Une cible absente ou désactivée est refusée.
+
+Chaque cible accepte seulement `expose` (booléen, défaut `false`) et `labels`
+(objet, défaut vide). Seules les clés minuscules `traefik.*` sont acceptées ;
+leurs valeurs sont des chaînes sans caractère de contrôle ni `$` (aucune
+interpolation de `.env`). L'ordre des labels et cibles est déterministe.
+Les secrets sont interdits ; les champs connus de credentials inline, dont
+BasicAuth/DigestAuth `users`, sont refusés. Utiliser des références vers des
+middlewares/TLS gérés par le Traefik externe. Yia ne peut pas déduire le caractère
+sensible d'une chaîne arbitraire : l'opérateur reste responsable du contenu.
+Les erreurs ne recopient jamais les valeurs de labels.
+
+`expose: true` est l'autorisation explicite de connecter cette cible au réseau
+partagé et de la rendre découvrable par Traefik. Yia impose `traefik.enable`
+à la chaîne `true` ou `false` correspondant à cette autorisation, et impose
+`traefik.docker.network` au réseau déclaré pour les cibles exposées. Les labels
+explicites ne peuvent pas contredire ces valeurs. Sans autorisation, une cible
+reste sur le réseau privé, avec `traefik.enable=false` ; des labels de routers
+ou services HTTP/TCP/UDP y sont refusés. Tous les conteneurs non ciblés sont
+également désactivés pour Traefik, même si son provider expose par défaut.
+
+Les applications HTTP continuent de passer par Apache : leurs runtimes ne
+peuvent pas être exposés directement via ce bloc. Si des applications web
+existent, `containers.apache.expose: true` est obligatoire. Apache garde ses
+vhosts et son port interne 80 mais ne publie aucun port hôte. Les hostnames,
+ports, noms de routers/services, entrypoints, règles et références TLS/middlewares
+restent explicitement configurés par l'opérateur ; Yia ne les invente pas et
+ne valide pas toute la sémantique Traefik. Les règles doivent correspondre aux
+vhosts Apache et les noms de routers/services éviter les collisions entre projets.
+
+Les services PostgreSQL, Redis et OpenBao restent privés par défaut. Leur
+`traefik.containers.<service>.expose: true` constitue une décision d'exposition
+distincte de leur éventuel `services.<service>.expose` (publication hôte).
+OpenBao conserve l'initialisation/déverrouillage manuels et son UI désactivée.
+L'exposition ne désactive aucune authentification et ne migre aucune donnée.
+
+Sans ce bloc, les hashes, sorties et topologies existantes restent identiques.
+V1 ne l'accepte pas. `validate` ne consulte pas Docker ; au démarrage Compose
+refuse un réseau externe absent. `doctor` vérifie son existence si Docker est
+accessible, sans créer ni supprimer ce réseau. Yia ne vérifie pas la disponibilité
+du Traefik externe ni ses certificats. Voir `docker.md` et `make-api.md`.
+
 ## Service OpenBao optionnel en V2
 
 V2 accepte une unique instance OpenBao indépendante des autres services :
@@ -29,6 +95,8 @@ Le contrat retenu est exclusivement **persistant**, avec stockage Raft sur une
 instance et volume nommé `openbao-data`. L'API est accessible uniquement sur
 le réseau Docker à `http://openbao:8200`. Aucun port hôte, hostname Apache ou
 mode développement n'est configurable pour cette première intégration.
+Exception explicite : le bloc `traefik.containers.openbao` peut autoriser
+l'exposition via Traefik externe, selon le contrat ci-dessus.
 
 L'initialisation et le déverrouillage sont **manuels**. Yia n'exige aucune
 variable de token ou de clé dans `.env`, ne crée pas de secret applicatif,

@@ -10,6 +10,8 @@ from .model import (
     RedisConfig,
     RuntimeConfig,
     ServicesConfig,
+    TraefikConfig,
+    TraefikContainerConfig,
     WebConfig,
 )
 from .normalizer import load_normalized_config, normalize_config
@@ -25,6 +27,8 @@ __all__ = [
     "RedisConfig",
     "RuntimeConfig",
     "ServicesConfig",
+    "TraefikConfig",
+    "TraefikContainerConfig",
     "WebConfig",
     "load_config",
     "load_normalized_config",

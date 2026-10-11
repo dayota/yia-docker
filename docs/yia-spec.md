@@ -432,7 +432,14 @@ Les futures versions du schéma doivent privilégier l'ajout de champs optionnel
 
 ### 11.1. Point d'entrée HTTP
 
-Apache est le point d'entrée HTTP unique de l'environnement.
+Apache est le point d'entrée HTTP unique de l'environnement par défaut.
+En V2, une intégration optionnelle avec Traefik externe peut assurer l'entrée
+externe, puis transmettre les applications à Apache sans publication de son
+port hôte. Les labels sont explicitement déclarés par conteneur Compose ;
+l'exposition sur le réseau partagé exige une autorisation distincte. Les
+services d'infrastructure restent privés sans cette décision explicite.
+Le contrat est défini dans [`configuration.md`](./configuration.md#traefik-externe-optionnel-en-v2)
+et [`docker.md`](./docker.md#exception-v2--traefik-externe).
 
 Par défaut, les applications ne publient pas directement leur port applicatif sur l'hôte.
 

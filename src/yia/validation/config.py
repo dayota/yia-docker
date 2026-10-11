@@ -8,6 +8,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, ValidationError
 
 from yia.errors import ErrorCode, YiaError
+from .traefik import traefik_errors
 
 
 HOSTNAME_PATTERN = re.compile(
@@ -66,6 +67,14 @@ def _expected_constraint(error: ValidationError) -> Any:
 
 
 def _format_schema_error(error: ValidationError) -> dict[str, Any]:
+    if "traefik" in error.absolute_path or (
+        error.validator == "additionalProperties"
+        and isinstance(error.instance, dict) and "traefik" in error.instance
+    ):
+        return {
+            "path": "traefik", "message": "invalid Traefik configuration (values omitted)",
+            "constraint": error.validator,
+        }
     return {
         "path": _format_path(error.absolute_path),
         "message": error.message,
@@ -366,6 +375,7 @@ def validate_config(
 
     if not schema_errors:
         errors.extend(_semantic_errors(config, project_root))
+        errors.extend(traefik_errors(config))
 
     if not errors:
         return

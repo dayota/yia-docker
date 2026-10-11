@@ -154,6 +154,28 @@ class ApplicationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class TraefikContainerConfig:
+    name: str
+    expose: bool
+    labels: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class TraefikConfig:
+    network: str
+    containers: tuple[TraefikContainerConfig, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "network": self.network,
+            "containers": {
+                target.name: {"expose": target.expose, "labels": dict(target.labels)}
+                for target in self.containers
+            },
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class NormalizedConfig:
     schema_version: int
     project_root: Path
@@ -161,6 +183,7 @@ class NormalizedConfig:
     environment: EnvironmentConfig
     services: ServicesConfig
     applications: tuple[ApplicationConfig, ...]
+    traefik: TraefikConfig | None = None
 
     def application(self, name: str) -> ApplicationConfig:
         for application in self.applications:
@@ -202,7 +225,7 @@ class NormalizedConfig:
             if initialization:
                 services["postgres"]["initialization"] = initialization
 
-        return {
+        result = {
             "schema_version": self.schema_version,
             "project_root": str(self.project_root),
             "project": {
@@ -216,6 +239,9 @@ class NormalizedConfig:
                 for application in self.applications
             },
         }
+        if self.traefik is not None:
+            result["traefik"] = self.traefik.to_dict()
+        return result
 
     def canonical_json(self) -> str:
         return json.dumps(

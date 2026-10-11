@@ -8,6 +8,7 @@ import socket
 import shutil
 import stat
 import subprocess
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +66,7 @@ VALID_CASES = (
     FixtureCase("postgres", ("postgres",)),
     FixtureCase("redis", ("redis",)),
     FixtureCase("openbao", ("openbao",)),
+    FixtureCase("traefik", ("apache", "php-8.4")),
     FixtureCase(
         "full",
         ("apache", "node-24-frontend", "php-8.4", "postgres"),
@@ -100,7 +102,7 @@ VALID_CASES = (
         ),
     ),
 )
-DOCKER_CASES = tuple(case for case in VALID_CASES if case.services and case.name != "openbao")
+DOCKER_CASES = tuple(case for case in VALID_CASES if case.services and case.name not in {"openbao", "traefik"})
 
 
 def _run(
@@ -469,6 +471,107 @@ def test_fixture_runs_end_to_end_with_docker(
             assert _redis_cli(tmp_path, "GET", "yia:persistence") == "preserved"
     finally:
         _make(tmp_path, "destroy-data", "YES=1")
+
+
+@pytest.mark.skipif(not RUN_DOCKER_INTEGRATION, reason="requires Docker integration opt-in")
+def test_traefik_external_routes_via_apache_and_preserves_shared_network(tmp_path: Path) -> None:
+    case = next(case for case in VALID_CASES if case.name == "php-only")
+    project_name = _materialize(tmp_path, case)
+    network = project_name + "-proxy"
+    proxy = project_name + "-traefik"
+    config_path = tmp_path / "yia.yml"
+    raw = yaml.safe_load(config_path.read_text())
+    raw["version"] = 2
+    (tmp_path / "sources").mkdir()
+    (tmp_path / "apps/api").rename(tmp_path / "sources/api")
+    raw["applications"]["api"]["path"] = "sources/api"
+    raw["applications"]["api"]["source"] = {"type": "linked"}
+    raw["services"] = {"redis": {"version": "7.4"}}
+    raw["traefik"] = {"network": network, "containers": {
+        "apache": {"expose": True, "labels": {
+            f"traefik.http.routers.{project_name}.rule": "Host(`api.php-only.localhost`)",
+            f"traefik.http.routers.{project_name}.entrypoints": "web",
+            f"traefik.http.routers.{project_name}.service": project_name,
+            f"traefik.http.services.{project_name}.loadbalancer.server.port": "80",
+        }},
+    }}
+    config_path.write_text(yaml.safe_dump(raw))
+    try:
+        assert _engine_make(tmp_path, "init").returncode == 0
+        assert _make(tmp_path, "validate", "FORMAT=json").returncode == 0
+        missing = _make(tmp_path, "doctor", "FORMAT=json")
+        assert json.loads(missing.stdout)["status"] == "error"
+        assert _make(tmp_path, "update").returncode != 0
+        created = _run(["docker", "network", "create", "--label", "yia.test=true", network])
+        assert created.returncode == 0, created.stderr
+        started = _run([
+            "docker", "run", "--detach", "--name", proxy, "--network", network,
+            "--mount", "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock,readonly",
+            "traefik:v3.6", "--providers.docker=true", "--providers.docker.exposedbydefault=true",
+            f"--providers.docker.constraints=Label(`com.docker.compose.project`,`{project_name}`)",
+            "--entrypoints.web.address=:80", "--api.dashboard=false",
+            "--entrypoints.redis.address=:6379",
+        ])
+        assert started.returncode == 0, started.stderr
+        updated = _make(tmp_path, "update")
+        assert updated.returncode == 0, updated.stderr
+        assert _make(tmp_path, "doctor", "FORMAT=json").returncode == 0
+        ps = json.loads(_make(tmp_path, "ps", "FORMAT=json").stdout)["services"]
+        containers = {service["service"]: service["name"] for service in ps}
+        assert set(containers) == {"apache", "php-8.4", "redis"}
+        before = _snapshot(tmp_path / ".yia-runtime")
+        identity = _container_id(containers["apache"])
+        assert _make(tmp_path, "update").returncode == 0
+        assert _snapshot(tmp_path / ".yia-runtime") == before
+        assert _container_id(containers["apache"]) == identity
+        for name in ("php-8.4", "redis"):
+            result = _run(["docker", "inspect", "--format", "{{json .NetworkSettings.Networks}}", containers[name]])
+            assert network not in json.loads(result.stdout)
+            label = _run(["docker", "inspect", "--format", '{{index .Config.Labels "traefik.enable"}}', containers[name]])
+            assert label.stdout.strip() == "false"
+        ports = _run(["docker", "inspect", "--format", "{{json .NetworkSettings.Ports}}", containers["apache"]])
+        assert not any(json.loads(ports.stdout).values())
+        response = None
+        for attempt in range(30):
+            response = _run(["docker", "exec", proxy, "wget", "-qO-",
+                             "--header", "Host: api.php-only.localhost", "http://127.0.0.1/"], timeout=10)
+            if response.returncode == 0:
+                break
+            time.sleep(1)
+        assert response is not None and response.returncode == 0, response.stderr if response else "no response"
+        assert "Yia PHP fixture: api" in response.stdout
+        assert _redis_cli(tmp_path, "SET", "yia:traefik", "preserved") == "OK"
+        raw["traefik"]["containers"]["redis"] = {"expose": True, "labels": {
+            f"traefik.tcp.routers.{project_name}-redis.rule": "HostSNI(`*`)",
+            f"traefik.tcp.routers.{project_name}-redis.entrypoints": "redis",
+            f"traefik.tcp.routers.{project_name}-redis.service": project_name + "-redis",
+            f"traefik.tcp.services.{project_name}-redis.loadbalancer.server.port": "6379",
+        }}
+        config_path.write_text(yaml.safe_dump(raw))
+        authorized = _make(tmp_path, "update")
+        assert authorized.returncode == 0, authorized.stderr
+        for attempt in range(30):
+            if _redis_cli(tmp_path, "-h", proxy, "PING") == "PONG":
+                break
+            time.sleep(1)
+        else:
+            pytest.fail("explicit Redis TCP route did not become available")
+        assert _redis_cli(tmp_path, "-h", proxy, "GET", "yia:traefik") == "preserved"
+        del raw["traefik"]["containers"]["redis"]
+        config_path.write_text(yaml.safe_dump(raw))
+        revoked = _make(tmp_path, "update")
+        assert revoked.returncode == 0, revoked.stderr
+        assert _redis_cli(tmp_path, "GET", "yia:traefik") == "preserved"
+        networks = _run(["docker", "inspect", "--format", "{{json .NetworkSettings.Networks}}", containers["redis"]])
+        assert network not in json.loads(networks.stdout)
+        label = _run(["docker", "inspect", "--format", '{{index .Config.Labels "traefik.enable"}}', containers["redis"]])
+        assert label.stdout.strip() == "false"
+        assert _make(tmp_path, "down").returncode == 0
+        assert _run(["docker", "network", "inspect", network]).returncode == 0
+    finally:
+        _make(tmp_path, "destroy-data", "YES=1")
+        _run(["docker", "rm", "--force", proxy])
+        _run(["docker", "network", "rm", network])
 
 
 @pytest.mark.skipif(not RUN_DOCKER_INTEGRATION, reason="requires Docker integration opt-in")

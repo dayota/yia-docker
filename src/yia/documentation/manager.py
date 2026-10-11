@@ -200,7 +200,9 @@ def render_development_environment(config: NormalizedConfig) -> str:
         f"- Projet Docker Compose : `{config.project.compose_name}`",
         f"- Réseau Docker : `{config.project.compose_name}_yia`",
         (
-            "- Reverse proxy : Apache, exposé sur le port hôte `80`"
+            "- Reverse proxy : Traefik externe → Apache, sans port hôte Apache"
+            if web_applications and config.traefik is not None
+            else "- Reverse proxy : Apache, exposé sur le port hôte `80`"
             if web_applications
             else "- Reverse proxy : non activé (aucune application web)"
         ),
@@ -260,24 +262,32 @@ def render_development_environment(config: NormalizedConfig) -> str:
     postgres = config.services.postgres
     redis = config.services.redis
     openbao = config.services.openbao
+    exposed = {
+        target.name for target in config.traefik.containers if target.expose
+    } if config.traefik is not None else set()
+
+    def exposure(name: str, ordinary: str) -> str:
+        if name not in exposed:
+            return ordinary
+        return ordinary.replace(" uniquement", "") + " ; Traefik externe autorisé"
     service_rows: list[tuple[str, ...]] = []
     if openbao is not None:
         service_rows.append((
-            "`openbao`", openbao.version, "réseau privé uniquement", "`openbao-data`",
+            "`openbao`", openbao.version, exposure("openbao", "réseau privé uniquement"), "`openbao-data`",
         ))
     if postgres is not None:
         service_rows.append(
             (
                 "`postgres`",
                 postgres.version,
-                "`5432:5432`" if postgres.expose else "réseau privé uniquement",
+                exposure("postgres", "`5432:5432`" if postgres.expose else "réseau privé uniquement"),
                 "`postgres-data`",
             )
         )
     if redis is not None:
         service_rows.append((
             "`redis`", redis.version,
-            "`127.0.0.1:6379:6379`" if redis.expose else "réseau privé uniquement",
+            exposure("redis", "`127.0.0.1:6379:6379`" if redis.expose else "réseau privé uniquement"),
             "`redis-data`",
         ))
     lines.extend(
@@ -330,7 +340,7 @@ def render_development_environment(config: NormalizedConfig) -> str:
                             if application.web.port is not None
                             else "PHP-FPM"
                         ),
-                        "`80` via Apache",
+                        "Traefik externe → Apache (aucun port hôte Apache)" if config.traefik is not None else "`80` via Apache",
                     )
                     for application in web_applications
                     if application.web is not None
@@ -365,11 +375,20 @@ def render_development_environment(config: NormalizedConfig) -> str:
         ])
     if openbao is not None:
         lines.extend([
-            "- OpenBao est accessible uniquement sur `http://openbao:8200` dans le réseau Docker privé.",
+            "- OpenBao est accessible sur `http://openbao:8200` et explicitement exposé via Traefik externe." if "openbao" in exposed else "- OpenBao est accessible uniquement sur `http://openbao:8200` dans le réseau Docker privé.",
             "- Initialisation et déverrouillage sont manuels via `make shell SERVICE=openbao`.",
             "- `make update` échoue tant qu'OpenBao n'est pas initialisé et déverrouillé.",
             "- Les clés et tokens restent sous la responsabilité de l'opérateur, hors de l'état Yia.",
             "",
+        ])
+    if config.traefik is not None:
+        lines.extend([
+            "## Traefik externe", "",
+            f"- Réseau partagé existant : `{config.traefik.network}` (non géré par Yia).",
+            "- Conteneurs explicitement exposés : " + (", ".join(f"`{name}`" for name in sorted(exposed)) or "aucun") + ".",
+            "- Les autres conteneurs portent `traefik.enable=false` et restent sur le réseau privé.",
+            "- Le routage applicatif reste assuré par Apache ; les labels sont définis dans `yia.yml` et ne sont pas recopiés ici.",
+            "- Les certificats, entrypoints, middlewares et credentials appartiennent au Traefik externe.", "",
         ])
     return "\n".join(lines)
 

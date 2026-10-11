@@ -92,6 +92,17 @@ def check_docker_access(project_root: Path) -> None:
     )
 
 
+def external_network_exists(project_root: Path, name: str) -> bool:
+    try:
+        _run(
+            [_docker_path(), "network", "inspect", "--format", "{{.Name}}", name],
+            cwd=project_root, capture_output=True, operation="network-inspect",
+        )
+    except YiaError:
+        return False
+    return True
+
+
 class DockerCompose:
     def __init__(
         self,

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from yia.documentation import validate_documentation
-from yia.docker.runner import compose_for_project, project_containers
+from yia.docker.runner import compose_for_project, project_containers, external_network_exists
 from yia.docker.openbao import openbao_status
 from yia.errors import YiaError
 from yia.project import Project, generation_is_current
@@ -71,6 +71,14 @@ def run_checks(
         if check["name"] in {"docker", "docker-compose", "docker-daemon"}
     )
     if docker_ready:
+        if project.config.traefik is not None:
+            network = project.config.traefik.network
+            exists = external_network_exists(project.root, network)
+            checks.append({
+                "name": "traefik-network",
+                "status": "ok" if exists else "error",
+                "details": network if exists else f"réseau externe absent ou inaccessible : {network}",
+            })
         if project.config.services.openbao is not None:
             compose = compose_for_project(
                 project_root=project.root,

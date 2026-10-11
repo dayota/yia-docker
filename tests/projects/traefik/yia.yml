@@ -1,0 +1,24 @@
+version: 2
+project:
+  name: traefik
+environment:
+  domain: traefik.localhost
+applications:
+  api:
+    type: php
+    path: sources/api
+    source: {type: linked}
+    runtime: {php: "8.4"}
+    web:
+      hostname: api.traefik.localhost
+      public_directory: public
+traefik:
+  network: proxy
+  containers:
+    apache:
+      expose: true
+      labels:
+        traefik.http.routers.traefik-api.rule: Host(`api.traefik.localhost`)
+        traefik.http.routers.traefik-api.entrypoints: web
+        traefik.http.routers.traefik-api.service: traefik-apache
+        traefik.http.services.traefik-apache.loadbalancer.server.port: "80"

@@ -75,6 +75,7 @@ provenance `source` de chaque application selon
 ## Cycle de développement quotidien
 
 - [U64 — Initialiser et déverrouiller OpenBao persistant](./u64.md)
+- [U65 — Configurer les conteneurs pour Traefik externe](./u65.md)
 
 - [U34 — Faire converger le projet avec `make update`](./u34.md)
 - [U35 — Ajouter, retirer ou changer une application](./u35.md)

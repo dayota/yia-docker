@@ -30,6 +30,12 @@ initialisation et déverrouillage manuels. `make update` échoue tant que le
 service n'est pas prêt. Voir [le contrat](./docs/configuration.md#service-openbao-optionnel-en-v2)
 et [le parcours manuel](./docs/usages/u64.md).
 
+V2 prend aussi en charge les labels `traefik.*` par service Compose pour un
+Traefik externe. Toute connexion au réseau partagé exige `expose: true` ;
+les applications restent routées via Apache sans port hôte publié.
+Voir [le contrat](./docs/configuration.md#traefik-externe-optionnel-en-v2)
+et [l'exemple](./docs/usages/u65.md).
+
 Le schéma `yia.yml` courant est V2 : chaque application déclare une source
 `managed` (URL SSH, branche et tag Git obligatoires, clonée sous `apps/`) ou
 `linked` (répertoire local existant, éventuellement externe au projet). Les

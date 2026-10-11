@@ -519,6 +519,12 @@ Un ADR n'a priorité que dans son périmètre.
 
 ### 11.1. Définition
 
+Lorsqu'un bloc Traefik externe V2 est déclaré, la vue dérivée indique le
+réseau partagé, les conteneurs explicitement exposés et l'absence de port hôte
+Apache. Elle ne recopie pas les valeurs des labels libres ; `yia.yml` en reste
+la source de vérité. Les services privés ne doivent pas être présentés comme
+exposés sans autorisation explicite.
+
 Une documentation dérivée est générée à partir d'une source structurée déjà normative.
 
 Exemple :

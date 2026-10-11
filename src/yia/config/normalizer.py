@@ -22,6 +22,8 @@ from .model import (
     RuntimeConfig,
     ServicesConfig,
     SourceConfig,
+    TraefikConfig,
+    TraefikContainerConfig,
     WebConfig,
 )
 
@@ -203,6 +205,7 @@ def normalize_config(
     resolved_root = project_root.resolve()
     project = cast(Mapping[str, Any], config["project"])
     environment = cast(Mapping[str, Any], config["environment"])
+    traefik = config.get("traefik")
 
     return NormalizedConfig(
         schema_version=int(config["version"]),
@@ -214,6 +217,19 @@ def normalize_config(
         environment=EnvironmentConfig(domain=str(environment["domain"])),
         services=_normalize_services(config, resolved_root),
         applications=_normalize_applications(config, resolved_root),
+        traefik=(
+            TraefikConfig(
+                network=str(traefik["network"]),
+                containers=tuple(
+                    TraefikContainerConfig(
+                        name=name,
+                        expose=target.get("expose", False),
+                        labels=tuple(sorted(target.get("labels", {}).items())),
+                    )
+                    for name, target in sorted(traefik.get("containers", {}).items())
+                ),
+            ) if isinstance(traefik, Mapping) else None
+        ),
     )
 
 
