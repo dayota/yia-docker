@@ -43,6 +43,7 @@ Les codes symboliques associés sont notamment :
 - `YIA_GENERATION_FAILED`
 - `YIA_DOCKER_UNAVAILABLE`
 - `YIA_MIGRATION_REQUIRED`
+- `YIA_OPENBAO_NOT_READY` (sortie 5)
 
 ---
 
@@ -316,6 +317,34 @@ l'identique. Si des services existent, Compose vérifie néanmoins leur
 convergence et leurs healthchecks sans recréer les containers inchangés.
 
 ---
+
+## 12 bis. Disponibilité OpenBao en V2
+
+OpenBao persistant exige initialisation et déverrouillage manuels. `update`,
+`up`, `restart`, `rebuild` et `reset` ne réussissent que si son healthcheck
+confirme sa disponibilité. En cas d'échec, lorsque le diagnostic identifie
+un serveur non initialisé ou verrouillé, Yia retourne
+`YIA_OPENBAO_NOT_READY` (sortie 5), avec `service: openbao`, `state`
+(`uninitialized`, `sealed` ou `unavailable`) et une suggestion d'opération
+manuelle. Les conteneurs déjà démarrés et les données sont conservés.
+
+`make shell SERVICE=openbao` reste disponible sans exiger le healthcheck :
+l'opérateur y utilise `bao operator init` puis `bao operator unseal` avec
+saisie interactive des clés. L'initialisation est effectuée une seule fois
+par l'opérateur, les clés et le token initial sont conservés sous sa
+responsabilité hors de Yia. Aucune nouvelle cible Make n'est nécessaire.
+La sortie humaine interactive d'OpenBao lors de cette opération explicite
+est distincte des diagnostics machine Yia : ces derniers n'affichent aucun
+secret. Les clés ne doivent jamais être passées dans `CMD` ou copiées dans
+les logs, les fichiers générés, la documentation ou l'état.
+
+`status FORMAT=json` ajoute, seulement si OpenBao est activé, un objet
+`openbao` avec `state`, `initialized` et `sealed` (booléens ou `null` lorsque
+le serveur est inaccessible). `versions.openbao` expose le tag déclaré.
+Un serveur non prêt produit un statut d'erreur et la sortie 1. Si Docker est
+accessible, `doctor` ajoute un check `openbao` en erreur tant qu'il n'est pas prêt ; sa sortie
+est également 1. `ps` conserve son contrat Docker générique. `logs`,
+`shell` et `exec` reconnaissent `SERVICE=openbao`.
 
 ## 13. `make up`
 

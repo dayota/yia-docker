@@ -14,6 +14,7 @@ from .model import (
     GitSourceConfig,
     NormalizedConfig,
     OnceHookConfig,
+    OpenBaoConfig,
     PackageManager,
     PostgresConfig,
     ProjectConfig,
@@ -44,6 +45,12 @@ def _normalize_services(
     services = config.get("services", {})
     postgres = services.get("postgres") if isinstance(services, Mapping) else None
     redis = services.get("redis") if isinstance(services, Mapping) else None
+    openbao = services.get("openbao") if isinstance(services, Mapping) else None
+    openbao_config = (
+        OpenBaoConfig(name="openbao", version=str(openbao["version"]))
+        if isinstance(openbao, Mapping) and openbao.get("enabled", True)
+        else None
+    )
     redis_config = (
         RedisConfig(
             name="redis",
@@ -54,10 +61,11 @@ def _normalize_services(
         else None
     )
     if not isinstance(postgres, Mapping) or not postgres.get("enabled", True):
-        return ServicesConfig(postgres=None, redis=redis_config)
+        return ServicesConfig(postgres=None, redis=redis_config, openbao=openbao_config)
 
     return ServicesConfig(
         redis=redis_config,
+        openbao=openbao_config,
         postgres=PostgresConfig(
             name="postgres",
             version=str(postgres["version"]),

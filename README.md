@@ -25,6 +25,11 @@ Il reste privé par défaut ; `expose: true` publie uniquement
 `127.0.0.1:6379:6379`. Voir [le contrat](./docs/configuration.md#service-redis-optionnel-en-v2)
 et [l'exemple complet](./docs/usages/u63.md).
 
+V2 propose aussi OpenBao persistant (Raft), privé sur le réseau Docker, avec
+initialisation et déverrouillage manuels. `make update` échoue tant que le
+service n'est pas prêt. Voir [le contrat](./docs/configuration.md#service-openbao-optionnel-en-v2)
+et [le parcours manuel](./docs/usages/u64.md).
+
 Le schéma `yia.yml` courant est V2 : chaque application déclare une source
 `managed` (URL SSH, branche et tag Git obligatoires, clonée sous `apps/`) ou
 `linked` (répertoire local existant, éventuellement externe au projet). Les

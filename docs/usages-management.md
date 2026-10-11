@@ -179,6 +179,10 @@ vers le scénario de dépannage précis au lieu d'en recopier les étapes.
 
 ### 4.6. Cycle de développement quotidien
 
+- **[U64 — Initialiser et déverrouiller OpenBao persistant](./usages/u64.md)** :
+  configurer une instance Raft privée, effectuer les opérations manuelles,
+  vérifier les diagnostics et préserver les données lors des redémarrages.
+
 - **[U34 — Faire converger le projet avec `make update`](./usages/u34.md)** : modifier `yia.yml`,
   appliquer l'état cible puis démontrer qu'un second passage est sans effet ;
   voir [T01](./usages/t01.md) et [T05](./usages/t05.md) en cas d'échec.

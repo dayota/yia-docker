@@ -102,6 +102,7 @@ Exemples :
 
 - PostgreSQL ;
 - Redis ;
+- OpenBao ;
 - Mailpit ;
 - MinIO ;
 - RabbitMQ.
@@ -150,6 +151,7 @@ Exemples :
 
 - volume PostgreSQL ;
 - données Redis persistantes si activées ;
+- données Raft OpenBao si activées ;
 - fichiers MinIO ;
 - caches explicitement déclarés persistants.
 
@@ -1120,6 +1122,14 @@ mutualisée, persistance obligatoire, mot de passe via `.env` et exposition
 optionnelle limitée à l'hôte local. Les contrats détaillés sont définis dans
 [`configuration.md`](./configuration.md#service-redis-optionnel-en-v2) et
 [`docker.md`](./docker.md#7-bis-redis-configuration-v2).
+
+OpenBao est disponible comme service optionnel en V2 : une instance persistante
+Raft sur le réseau Docker privé, initialisée et déverrouillée manuellement.
+Yia ne conserve ni clés de déverrouillage ni tokens ; la convergence échoue
+explicitement tant que le service n'est pas prêt. Le contrat détaillé est dans
+[`configuration.md`](./configuration.md#service-openbao-optionnel-en-v2),
+[`docker.md`](./docker.md#7-ter-openbao-configuration-v2) et
+[`make-api.md`](./make-api.md#12-bis-disponibilité-openbao-en-v2).
 
 ---
 

@@ -17,4 +17,8 @@ services:
   #   version: "7.4"
   #   expose: false
 
+  # Service optionnel persistant ; initialisation et déverrouillage manuels.
+  # openbao:
+  #   version: "2.5.0"
+
 applications: {}

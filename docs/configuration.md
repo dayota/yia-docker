@@ -5,6 +5,46 @@
 > **Identifiant :** `YIA-SPEC-CONFIG`  
 > **Version du schéma courant :** 2 (V1 accepté pour migration)
 
+## Service OpenBao optionnel en V2
+
+V2 accepte une unique instance OpenBao indépendante des autres services :
+
+```yaml
+services:
+  openbao:
+    enabled: true
+    version: "2.5.0"
+```
+
+Seuls `enabled` et `version` sont autorisés. Un bloc présent vaut
+`enabled: true` ; absent ou désactivé, OpenBao est absent du modèle effectif.
+`version` est une chaîne obligatoire lorsque le service est activé, sans
+défaut : tag de l'image officielle `openbao/openbao`, commençant par un numéro
+majeur de 2 ou plus, suivi éventuellement de caractères de tag après `.`, `_`
+ou `-`. Les sauts de ligne sont interdits. Docker vérifie l'existence du tag.
+V1 reste limité à PostgreSQL. Le modèle effectif expose `name: openbao`,
+`enabled: true` et `version`, sans modifier les hashes des modèles sans OpenBao.
+
+Le contrat retenu est exclusivement **persistant**, avec stockage Raft sur une
+instance et volume nommé `openbao-data`. L'API est accessible uniquement sur
+le réseau Docker à `http://openbao:8200`. Aucun port hôte, hostname Apache ou
+mode développement n'est configurable pour cette première intégration.
+
+L'initialisation et le déverrouillage sont **manuels**. Yia n'exige aucune
+variable de token ou de clé dans `.env`, ne crée pas de secret applicatif,
+n'initialise ni ne déverrouille automatiquement OpenBao. Les clés et tokens
+appartiennent au projet et sont conservés par l'opérateur hors des artefacts
+générés et de l'état interne. Les diagnostics ne les demandent jamais.
+
+`make init`, `validate`, `config` et `generate` ne démarrent pas le service.
+`make update` et les commandes de démarrage exigent sa disponibilité réelle :
+un service non initialisé ou verrouillé retourne `YIA_OPENBAO_NOT_READY`
+(sortie 5) avec le service, l'état et la procédure manuelle attendue. Le
+conteneur démarré et le volume sont conservés pour permettre cette procédure
+via `make shell SERVICE=openbao`. `status` et `doctor` distinguent
+`uninitialized`, `sealed`, `ready` et `unavailable`, sans copier les réponses
+brutes de l'API. Voir `docker.md` et `make-api.md`.
+
 ## Service Redis optionnel en V2
 
 V2 accepte un unique Redis mutualisé par projet, indépendamment de PostgreSQL :

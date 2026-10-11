@@ -234,7 +234,7 @@ def initialize_project(
         ),
         runtimes=project.config.runtime_names,
         services=tuple(
-            name for name in ("postgres", "redis")
+            name for name in ("openbao", "postgres", "redis")
             if getattr(project.config.services, name) is not None
         ),
         urls=tuple(

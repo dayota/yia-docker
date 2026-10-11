@@ -259,7 +259,12 @@ def render_development_environment(config: NormalizedConfig) -> str:
 
     postgres = config.services.postgres
     redis = config.services.redis
+    openbao = config.services.openbao
     service_rows: list[tuple[str, ...]] = []
+    if openbao is not None:
+        service_rows.append((
+            "`openbao`", openbao.version, "réseau privé uniquement", "`openbao-data`",
+        ))
     if postgres is not None:
         service_rows.append(
             (
@@ -280,6 +285,8 @@ def render_development_environment(config: NormalizedConfig) -> str:
     )
 
     volume_rows: list[tuple[str, ...]] = []
+    if openbao is not None:
+        volume_rows.append(("`openbao-data`", "données OpenBao (Raft)"))
     if postgres is not None:
         volume_rows.append(("`postgres-data`", "données PostgreSQL"))
     if redis is not None:
@@ -354,6 +361,14 @@ def render_development_environment(config: NormalizedConfig) -> str:
             "- Redis est disponible sur `redis:6379` dans le réseau Docker privé.",
             "- `REDIS_PASSWORD` est obligatoire dans `.env` ; sa valeur n'est jamais documentée.",
             "- Le volume `redis-data` est conservé par les commandes ordinaires.",
+            "",
+        ])
+    if openbao is not None:
+        lines.extend([
+            "- OpenBao est accessible uniquement sur `http://openbao:8200` dans le réseau Docker privé.",
+            "- Initialisation et déverrouillage sont manuels via `make shell SERVICE=openbao`.",
+            "- `make update` échoue tant qu'OpenBao n'est pas initialisé et déverrouillé.",
+            "- Les clés et tokens restent sous la responsabilité de l'opérateur, hors de l'état Yia.",
             "",
         ])
     return "\n".join(lines)

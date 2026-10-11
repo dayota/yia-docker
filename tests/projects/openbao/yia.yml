@@ -1,0 +1,9 @@
+version: 2
+project:
+  name: openbao
+environment:
+  domain: openbao.localhost
+services:
+  openbao:
+    version: "2.5.0"
+applications: {}

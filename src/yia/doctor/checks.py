@@ -5,6 +5,7 @@ from typing import Any
 
 from yia.documentation import validate_documentation
 from yia.docker.runner import compose_for_project, project_containers
+from yia.docker.openbao import openbao_status
 from yia.errors import YiaError
 from yia.project import Project, generation_is_current
 from yia.system import installation_checks
@@ -70,6 +71,19 @@ def run_checks(
         if check["name"] in {"docker", "docker-compose", "docker-daemon"}
     )
     if docker_ready:
+        if project.config.services.openbao is not None:
+            compose = compose_for_project(
+                project_root=project.root,
+                project_name=project.config.project.compose_name,
+                compose_path=project.compose_path,
+                dotenv_path=project.dotenv_path,
+            )
+            status = openbao_status(compose)
+            checks.append({
+                "name": "openbao",
+                "status": "ok" if status["state"] == "ready" else "error",
+                "details": status["state"],
+            })
         containers = project_containers(project.root, project.config.project.name)
         if not containers:
             checks.append(

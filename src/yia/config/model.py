@@ -48,9 +48,16 @@ class RedisConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class OpenBaoConfig:
+    name: str
+    version: str
+
+
+@dataclass(frozen=True, slots=True)
 class ServicesConfig:
     postgres: PostgresConfig | None
     redis: RedisConfig | None = None
+    openbao: OpenBaoConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,6 +174,12 @@ class NormalizedConfig:
 
     def to_dict(self) -> dict[str, Any]:
         services: dict[str, Any] = {}
+        if self.services.openbao is not None:
+            services["openbao"] = {
+                "name": self.services.openbao.name,
+                "enabled": True,
+                "version": self.services.openbao.version,
+            }
         if self.services.redis is not None:
             services["redis"] = {
                 "name": self.services.redis.name,

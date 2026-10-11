@@ -64,6 +64,7 @@ VALID_CASES = (
     ),
     FixtureCase("postgres", ("postgres",)),
     FixtureCase("redis", ("redis",)),
+    FixtureCase("openbao", ("openbao",)),
     FixtureCase(
         "full",
         ("apache", "node-24-frontend", "php-8.4", "postgres"),
@@ -99,7 +100,7 @@ VALID_CASES = (
         ),
     ),
 )
-DOCKER_CASES = tuple(case for case in VALID_CASES if case.services)
+DOCKER_CASES = tuple(case for case in VALID_CASES if case.services and case.name != "openbao")
 
 
 def _run(
@@ -107,6 +108,7 @@ def _run(
     *,
     cwd: Path | None = None,
     timeout: int = 900,
+    input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         arguments,
@@ -115,6 +117,7 @@ def _run(
         capture_output=True,
         text=True,
         timeout=timeout,
+        input=input_text,
     )
 
 
@@ -464,6 +467,81 @@ def test_fixture_runs_end_to_end_with_docker(
             restored = _make(tmp_path, "update")
             assert restored.returncode == 0, restored.stderr
             assert _redis_cli(tmp_path, "GET", "yia:persistence") == "preserved"
+    finally:
+        _make(tmp_path, "destroy-data", "YES=1")
+
+
+@pytest.mark.skipif(not RUN_DOCKER_INTEGRATION, reason="requires Docker integration opt-in")
+def test_openbao_manual_readiness_and_persistence(tmp_path: Path) -> None:
+    case = next(case for case in VALID_CASES if case.name == "openbao")
+    _materialize(tmp_path, case)
+    try:
+        initialized = _engine_make(tmp_path, "init")
+        assert initialized.returncode == 0, initialized.stderr
+        assert _make(tmp_path, "validate").returncode == 0
+        first = _make(tmp_path, "update")
+        assert first.returncode != 0
+        assert "YIA_OPENBAO_NOT_READY" in first.stderr
+        status = _make(tmp_path, "status", "FORMAT=json")
+        assert status.returncode != 0
+        assert json.loads(status.stdout)["openbao"]["state"] == "uninitialized"
+        ps = _make(tmp_path, "ps", "FORMAT=json")
+        container = json.loads(ps.stdout)["services"][0]["name"]
+
+        # Bootstrap credentials remain in memory, never in assertions or files.
+        bootstrap = _run(["docker", "exec", container, "bao", "operator", "init",
+                          "-format=json", "-key-shares=1", "-key-threshold=1"])
+        assert bootstrap.returncode == 0
+        credentials = json.loads(bootstrap.stdout)
+        key = credentials["unseal_keys_b64"][0]
+        token = credentials["root_token"]
+
+        def unseal():
+            result = _run(["docker", "exec", "-i", container, "sh", "-c",
+                           'read -r key; bao operator unseal "$key" >/dev/null'],
+                          input_text=key + "\n")
+            assert result.returncode == 0
+
+        def authenticated(command):
+            result = _run(["docker", "exec", "-i", container, "sh", "-c",
+                           'read -r BAO_TOKEN; export BAO_TOKEN; ' + command],
+                          input_text=token + "\n")
+            assert result.returncode == 0
+            return result.stdout
+
+        unseal()
+        updated = _make(tmp_path, "update")
+        assert updated.returncode == 0, updated.stderr
+        ready = _make(tmp_path, "status", "FORMAT=json")
+        assert ready.returncode == 0
+        assert json.loads(ready.stdout)["openbao"] == {
+            "state": "ready", "initialized": True, "sealed": False,
+        }
+        assert _make(tmp_path, "doctor", "FORMAT=json").returncode == 0
+        ports = _run(["docker", "inspect", "--format", "{{json .NetworkSettings.Ports}}", container])
+        assert not any(json.loads(ports.stdout).values())
+        before = _snapshot(tmp_path / ".yia-runtime")
+        identity = _container_id(container)
+        assert _make(tmp_path, "update").returncode == 0
+        assert _snapshot(tmp_path / ".yia-runtime") == before
+        assert _container_id(container) == identity
+        authenticated("bao secrets enable -path=e2e kv >/dev/null")
+        authenticated("bao kv put e2e/check value=preserved >/dev/null")
+
+        for operation in ("restart", "rebuild", "reset"):
+            result = _make(tmp_path, operation)
+            assert result.returncode != 0
+            assert "YIA_OPENBAO_NOT_READY" in result.stderr
+            sealed = _make(tmp_path, "status", "FORMAT=json")
+            assert json.loads(sealed.stdout)["openbao"]["state"] == "sealed"
+            assert _make(tmp_path, "doctor", "FORMAT=json").returncode != 0
+            unseal()
+            assert _make(tmp_path, "update").returncode == 0
+            assert authenticated("bao kv get -field=value e2e/check").strip() == "preserved"
+
+        for directory in (".yia-runtime", ".yia-data", ".agents"):
+            assert all(key.encode() not in content and token.encode() not in content
+                       for content in _contents(tmp_path / directory).values())
     finally:
         _make(tmp_path, "destroy-data", "YES=1")
 

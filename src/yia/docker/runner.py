@@ -220,6 +220,8 @@ def resolve_service(config: NormalizedConfig, requested: str) -> str:
         add("postgres", "postgres")
     if config.services.redis is not None:
         add("redis", "redis")
+    if config.services.openbao is not None:
+        add("openbao", "openbao")
 
     for application in config.applications:
         if application.type == "php":

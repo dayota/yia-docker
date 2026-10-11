@@ -33,6 +33,13 @@ from .postgres import (
     postgres_data_path,
     postgres_environment,
 )
+from .openbao import (
+    OPENBAO_CONFIGURATION,
+    OPENBAO_CONFIG_PATH,
+    OPENBAO_CONFIG_CONTAINER_PATH,
+    OPENBAO_DATA_VOLUME,
+    OPENBAO_HEALTH_URL,
+)
 
 
 COMPOSE_PATH = "compose/compose.yaml"
@@ -367,6 +374,29 @@ def _redis_service(config: NormalizedConfig) -> dict[str, object] | None:
     return service
 
 
+def _openbao_service(config: NormalizedConfig) -> dict[str, object] | None:
+    openbao = config.services.openbao
+    if openbao is None:
+        return None
+    healthcheck = _healthcheck(["CMD", "wget", "-q", "-O", "/dev/null", OPENBAO_HEALTH_URL])
+    healthcheck.update(interval="2s", retries=3)
+    return {
+        "image": f"openbao/openbao:{openbao.version}",
+        "command": ["bao", "server", f"-config={OPENBAO_CONFIG_CONTAINER_PATH}"],
+        "environment": {"BAO_ADDR": "http://127.0.0.1:8200"},
+        "networks": [NETWORK_NAME],
+        "volumes": [
+            {"type": "volume", "source": OPENBAO_DATA_VOLUME, "target": "/openbao/file"},
+            {
+                "type": "bind", "source": f"../{OPENBAO_CONFIG_PATH}",
+                "target": OPENBAO_CONFIG_CONTAINER_PATH, "read_only": True,
+            },
+        ],
+        "tmpfs": ["/openbao/logs"],
+        "healthcheck": healthcheck,
+    }
+
+
 def _compose_model(config: NormalizedConfig) -> dict[str, object]:
     services: dict[str, dict[str, object]] = {}
     volumes: set[str] = set()
@@ -397,6 +427,11 @@ def _compose_model(config: NormalizedConfig) -> dict[str, object]:
         services["redis"] = redis
         volumes.add("redis-data")
 
+    openbao = _openbao_service(config)
+    if openbao is not None:
+        services["openbao"] = openbao
+        volumes.add(OPENBAO_DATA_VOLUME)
+
     compose: dict[str, object] = {
         "name": config.project.compose_name,
         "services": dict(sorted(services.items())),
@@ -424,3 +459,5 @@ class ComposeGenerator:
             COMPOSE_PATH,
             _serialize_compose(_compose_model(context.config)),
         )
+        if context.config.services.openbao is not None:
+            yield GeneratedFile.text(OPENBAO_CONFIG_PATH, OPENBAO_CONFIGURATION)

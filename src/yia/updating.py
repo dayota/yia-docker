@@ -12,6 +12,7 @@ from yia.documentation import (
     validate_documentation,
 )
 from yia.docker.runner import compose_for_project
+from yia.docker.openbao import with_openbao_readiness
 from yia.errors import ErrorCode, YiaError
 from yia.project import Project, generate_project, generation_is_current
 from yia.state import assert_state_compatible, read_state
@@ -86,6 +87,8 @@ def _bind_config_services(changed_paths: tuple[str, ...]) -> set[str]:
     services: set[str] = set()
     if "apache/vhosts.conf" in changed_paths:
         services.add("apache")
+    if "openbao/server.hcl" in changed_paths:
+        services.add("openbao")
     for path in changed_paths:
         parts = Path(path).parts
         if len(parts) == 3 and parts[0] == "php" and parts[2] == "fpm-pools.conf":
@@ -180,8 +183,11 @@ def update_project(project: Project) -> UpdateResult:
             dotenv_path=project.dotenv_path,
         )
         if services:
-            compose.converge()
-            compose.force_recreate_services(forced_services)
+            def converge() -> None:
+                compose.converge()
+                compose.force_recreate_services(forced_services)
+
+            with_openbao_readiness(project.config, compose, converge)
             run_initialization_hooks(project.config, compose)
         else:
             # Removing the last declared service still requires convergence.

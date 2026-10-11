@@ -21,6 +21,7 @@ from yia.docker.runner import (
     resolve_service,
 )
 from yia.doctor import run_checks
+from yia.docker.openbao import openbao_status, with_openbao_readiness
 from yia.errors import ErrorCode, YiaError
 from yia.initialization import initialize_project
 from yia.initialization_hooks import run_initialization_hooks
@@ -293,7 +294,7 @@ def cmd_up(args: argparse.Namespace) -> int:
     project = _project(args)
     require_current_generation(project)
     compose = _compose(project)
-    compose.up()
+    with_openbao_readiness(project.config, compose, compose.up)
     run_initialization_hooks(project.config, compose)
     return 0
 
@@ -308,7 +309,7 @@ def cmd_restart(args: argparse.Namespace) -> int:
     project = _project(args)
     require_current_generation(project)
     compose = _compose(project)
-    compose.restart()
+    with_openbao_readiness(project.config, compose, compose.restart)
     run_initialization_hooks(project.config, compose)
     return 0
 
@@ -325,7 +326,7 @@ def cmd_rebuild(args: argparse.Namespace) -> int:
     require_current_generation(project)
     compose = _compose(project)
     compose.build(no_cache=True)
-    compose.recreate()
+    with_openbao_readiness(project.config, compose, compose.recreate)
     run_initialization_hooks(project.config, compose)
     return 0
 
@@ -403,6 +404,13 @@ def cmd_status(args: argparse.Namespace) -> int:
         ),
         "services": services,
     }
+    if project.config.services.openbao is not None:
+        payload["versions"]["openbao"] = project.config.services.openbao.version
+        payload["openbao"] = openbao_status(_compose(project))
+        if payload["openbao"]["state"] != "ready":
+            status = "error"
+            payload["status"] = status
+            payload["environment"] = "degraded" if services else "stopped"
     emit(payload, as_json=args.json)
     return 1 if status == "error" else 0
 
@@ -475,7 +483,7 @@ def cmd_reset(args: argparse.Namespace) -> int:
     generate_project(project)
     compose = _compose(project)
     compose.build()
-    compose.up()
+    with_openbao_readiness(project.config, compose, compose.up)
     run_initialization_hooks(project.config, compose)
     return 0
 

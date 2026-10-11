@@ -463,6 +463,49 @@ Le healthcheck exige une réponse exacte `PONG` à un `PING` authentifié, avec
 intervalles et délais communs. `init`, `status`, `doctor`, `logs`, `shell` et
 `exec` reconnaissent le service logique `redis` sans nouvelle cible Make.
 
+## 7 ter. OpenBao (configuration V2)
+
+Le service logique `openbao` utilise `openbao/openbao:<version explicite>`
+(version majeure 2 ou plus), en mode serveur persistant. Il n'utilise jamais
+`-dev`. Le générateur Compose produit également
+`.yia-runtime/openbao/server.hcl`, marqué comme généré et monté en lecture
+seule dans `/yia/openbao/server.hcl`.
+
+Une instance Raft unique stocke ses données dans `/openbao/file`, monté depuis
+le volume nommé `openbao-data`. Son identifiant stable est `openbao`.
+L'adresse API est `http://openbao:8200`, l'adresse cluster est
+`http://openbao:8201`. Seul le réseau privé `yia` est utilisé ; aucun port
+8200 ou 8201 n'est publié, aucun vhost Apache n'est généré. HTTP sans TLS est
+réservé à ce réseau de développement local. L'interface web est désactivée.
+Avec Raft, `disable_mlock: true` évite d'exiger des capacités Docker
+supplémentaires. L'entrypoint officiel prépare les permissions du volume et
+exécute le serveur sous l'utilisateur `openbao`. `/openbao/logs` est un tmpfs
+éphémère ; aucun audit sur fichier n'est configuré par cette intégration.
+
+Le healthcheck effectue une requête locale à `/v1/sys/health` et exige son
+succès HTTP normal ; un serveur non initialisé ou verrouillé est unhealthy.
+Son intervalle est de 2 secondes, son timeout de 5 secondes, avec 3 tentatives
+et un délai initial de 5 secondes. Les diagnostics lisent le JSON de `bao status`
+en acceptant son code 2 pour un serveur verrouillé, puis confirment la
+disponibilité HTTP d'un serveur déverrouillé. Ils ne parsèment jamais de texte
+humain et ne restituent que des booléens et un état contrôlé.
+
+Après déverrouillage, si l'API est prête mais Compose échoue encore, Yia attend
+un intervalle de healthcheck et retente une seule fois l'opération. Un nouvel
+échec Docker reste une erreur ; aucun état verrouillé n'est accepté.
+
+Le premier `update` démarre le conteneur puis échoue si l'opérateur n'a pas
+initialisé et déverrouillé OpenBao. Le conteneur reste démarré pour les
+opérations manuelles via Make. Après chaque redémarrage ou recréation,
+OpenBao peut nécessiter un nouveau déverrouillage : Yia ne stocke pas les
+clés pour le contourner. Un second `update` sur une instance prête conserve
+le conteneur et les artefacts inchangés.
+
+`down`, `update`, `restart`, `rebuild`, `reset`, `clean`, `destroy` et le retrait
+du service conservent `openbao-data`. Seul `destroy-data` peut le supprimer
+avec confirmation. Changer de version ne constitue pas une migration
+automatique ou une garantie de compatibilité du format persistant.
+
 ## 8. Volumes
 
 ### 8.1. Volumes persistants
