@@ -8,7 +8,7 @@ import pytest
 from yia.config import load_normalized_config
 from yia.errors import YiaError
 from yia.initialization import initialize_project
-from yia.project import load_project
+from yia.project import generate_project, load_project
 from yia.sources import synchronize_sources
 from yia.updating import update_project
 
@@ -78,6 +78,20 @@ def test_linked_external_path_is_untouched(tmp_path: Path) -> None:
     synchronize_sources(config)
     assert config.applications[0].path == external
     assert (external / "index.php").read_text(encoding="utf-8") == "local"
+
+
+def test_linked_project_root_generates_without_modifying_source(tmp_path: Path) -> None:
+    (tmp_path / "index.php").write_text("local", encoding="utf-8")
+    project = load_project(_config(tmp_path, source_type="linked", path="."))
+    assert project.config.applications[0].path == tmp_path
+    synchronize_sources(project.config)
+    first = generate_project(project)
+    compose = project.compose_path.read_bytes()
+    second = generate_project(project)
+    assert first.changed is True
+    assert second.changed is False
+    assert project.compose_path.read_bytes() == compose
+    assert (tmp_path / "index.php").read_text(encoding="utf-8") == "local"
 
 
 def test_managed_requires_git_fields(tmp_path: Path) -> None:

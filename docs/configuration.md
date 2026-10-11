@@ -246,6 +246,7 @@ applications:
   peut avancer sans modifier la version installée.
 - `linked` interdit le bloc `git`. Son chemin pointe vers un répertoire local
   existant, relatif au projet ou absolu, et peut sortir de la racine du projet.
+  `path: .` désigne la racine du projet consommateur.
   Il ne peut pas être situé sous `apps/`. Yia ne clone ni ne modifie ce code.
 - Yia refuse les chemins `managed` qui s'échappent de `apps/`, les liens
   symboliques à cet emplacement, les répertoires occupés par une autre source

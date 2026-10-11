@@ -270,7 +270,11 @@ def _semantic_errors(
             managed_paths[resolved_path] = name
         if source_type == "linked" and (
             resolved_path.is_relative_to(apps_root)
-            or (not relative_path.is_absolute() and relative_path.parts[0] == "apps")
+            or (
+                not relative_path.is_absolute()
+                and relative_path.parts
+                and relative_path.parts[0] == "apps"
+            )
         ):
             errors.append(
                 {

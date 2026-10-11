@@ -34,3 +34,4 @@ dist/
 # Temporary files
 *.tmp
 *.swp
+/e01-yia-adaptations.md
