@@ -10,7 +10,7 @@ CLI = PYTHONPATH="$(YIA_ROOT)/src" "$(PYTHON)" -m yia
 export YIA_EXEC_CMD := $(value CMD)
 export YIA_SERVICE := $(value SERVICE)
 
-.PHONY: help install check-install version init validate config generate update up down restart ps status doctor logs shell exec build rebuild test clean reset destroy destroy-data
+.PHONY: help install check-install version init validate config generate update up down restart ps status doctor logs shell exec build rebuild reload-secrets test clean reset destroy destroy-data
 
 help:
 	@printf '%s\n' \
@@ -34,6 +34,7 @@ help:
 	  '  make exec SERVICE=x CMD="..."        Exécute une commande sans passer par un shell' \
 	  '  make build                           Construit les images' \
 	  '  make rebuild                         Reconstruit sans supprimer les données' \
+	  '  make reload-secrets                  Recrée les consommateurs de fichiers secrets sans rebuild' \
 	  '  make test                            Lance les tests Yia ou valide le projet consommateur' \
 	  '  make clean                           Supprime seulement .yia-runtime' \
 	  '  make reset                           Reconstruit sans supprimer les volumes' \
@@ -96,6 +97,9 @@ build:
 
 rebuild:
 	@$(CLI) rebuild --config "$(CONFIG)"
+
+reload-secrets:
+	@$(CLI) reload-secrets --config "$(CONFIG)"
 
 test:
 	@$(CLI) test --config "$(CONFIG)" --project-root "$(PROJECT_ROOT)"

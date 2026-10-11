@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 ApplicationType = Literal["php", "node", "python"]
 PackageManager = Literal["pnpm", "npm", "yarn"]
+SecretFiles = tuple[tuple[str, Path], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,7 @@ class PostgresConfig:
     expose: bool
     init_sql: Path | None = None
     once: OnceHookConfig | None = None
+    secret_files: SecretFiles = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +47,7 @@ class RedisConfig:
     name: str
     version: str
     expose: bool
+    secret_files: SecretFiles = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,10 +79,55 @@ class FrameworkConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class HealthcheckConfig:
+    test: tuple[str, ...]
+    interval: str
+    timeout: str
+    retries: int
+    start_period: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"test": list(self.test), "interval": self.interval,
+                "timeout": self.timeout, "retries": self.retries,
+                "start_period": self.start_period}
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessConfig:
+    name: str
+    command: tuple[str, ...]
+    working_directory: Path
+    depends_on: tuple[str, ...]
+    stop_grace_period: str
+    port: int | None
+    healthcheck: HealthcheckConfig | None
+
+    def to_dict(self) -> dict[str, Any]:
+        result = {"command": list(self.command), "working_directory": str(self.working_directory),
+                  "depends_on": list(self.depends_on), "stop_grace_period": self.stop_grace_period,
+                  "port": self.port}
+        if self.healthcheck is not None:
+            result["healthcheck"] = self.healthcheck.to_dict()
+        return result
+
+
+@dataclass(frozen=True, slots=True)
+class ProxyRouteConfig:
+    path: str
+    process: str
+    websocket: bool
+    timeout: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"path": self.path, "process": self.process, "websocket": self.websocket, "timeout": self.timeout}
+
+
+@dataclass(frozen=True, slots=True)
 class WebConfig:
     hostname: str
     public_directory: Path | None
     port: int | None
+    proxy_routes: tuple[ProxyRouteConfig, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +153,8 @@ class ApplicationConfig:
     web: WebConfig | None
     source: SourceConfig | None = None
     once: OnceHookConfig | None = None
+    secret_files: SecretFiles = ()
+    processes: tuple[ProcessConfig, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         framework = None
@@ -125,6 +175,8 @@ class ApplicationConfig:
                 ),
                 "port": self.web.port,
             }
+            if self.web.proxy_routes:
+                web["proxy_routes"] = [route.to_dict() for route in self.web.proxy_routes]
 
         result = {
             "name": self.name,
@@ -150,6 +202,10 @@ class ApplicationConfig:
                 }
         if self.once is not None:
             result["initialization"] = {"once": self.once.to_dict()}
+        if self.secret_files:
+            result["secret_files"] = {name: str(path) for name, path in self.secret_files}
+        if self.processes:
+            result["processes"] = {process.name: process.to_dict() for process in self.processes}
         return result
 
 
@@ -224,6 +280,12 @@ class NormalizedConfig:
                 initialization["once"] = self.services.postgres.once.to_dict()
             if initialization:
                 services["postgres"]["initialization"] = initialization
+
+        for service in (self.services.postgres, self.services.redis):
+            if service is not None and service.secret_files:
+                services[service.name]["secret_files"] = {
+                    name: str(path) for name, path in service.secret_files
+                }
 
         result = {
             "schema_version": self.schema_version,

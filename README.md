@@ -20,7 +20,8 @@ suite end-to-end couvre les fixtures principales, leurs topologies Docker, le
 routage HTTP et les erreurs de configuration.
 
 V2 propose également un Redis optionnel et mutualisé, toujours persistant
-(AOF et RDB dans `redis-data`), avec `REDIS_PASSWORD` obligatoire via `.env`.
+(AOF et RDB dans `redis-data`), avec `REDIS_PASSWORD` obligatoire via `.env`
+ou une référence `secret_files`.
 Il reste privé par défaut ; `expose: true` publie uniquement
 `127.0.0.1:6379:6379`. Voir [le contrat](./docs/configuration.md#service-redis-optionnel-en-v2)
 et [l'exemple complet](./docs/usages/u63.md).
@@ -44,6 +45,14 @@ configurations V1 restent lisibles pour une migration explicite ; voir
 Le schéma V2 accepte également un SQL texte exécuté lors de la création du
 volume PostgreSQL et des scripts de service ou d'application exécutés une
 seule fois après succès, avec marqueurs persistants.
+
+V2 accepte les secrets par fichiers pour PostgreSQL, Redis et les applications
+PHP, ainsi que des processus PHP supervisés dans le runtime FPM mutualisé et
+des routes Apache HTTP/WebSocket explicites. Les sorties de processus rendent
+le runtime unhealthy sans redémarrage automatique. `make reload-secrets`
+recrée explicitement les consommateurs concernés, sans rebuild ni suppression
+des volumes. Voir [configuration](./docs/configuration.md),
+[runtimes](./docs/docker.md) et [API Make](./docs/make-api.md).
 
 Pour préparer le dépôt puis exécuter les contrôles :
 

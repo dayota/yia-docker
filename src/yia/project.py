@@ -76,6 +76,8 @@ def validate_project_environment(project: Project) -> None:
     ):
         if service is None:
             continue
+        if variable in dict(service.secret_files):
+            continue
         password = os.environ.get(variable)
         if password is None:
             password = _dotenv_value(project.dotenv_path, variable)
@@ -111,6 +113,16 @@ def validate_project_dependencies(
                         "path": str(application.once.script),
                         "application": application.name,
                         "constraint": "contained_initialization_script",
+                    }
+                )
+        for process in application.processes:
+            directory = process.working_directory.resolve()
+            if not directory.is_relative_to(application.path) or not directory.is_dir():
+                errors.append(
+                    {
+                        "application": application.name,
+                        "process": process.name,
+                        "constraint": "existing_contained_directory",
                     }
                 )
         if application.type == "python":

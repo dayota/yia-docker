@@ -91,7 +91,7 @@ def _bind_config_services(changed_paths: tuple[str, ...]) -> set[str]:
         services.add("openbao")
     for path in changed_paths:
         parts = Path(path).parts
-        if len(parts) == 3 and parts[0] == "php" and parts[2] == "fpm-pools.conf":
+        if len(parts) == 3 and parts[0] == "php" and parts[2] in {"fpm-pools.conf", "applications.json"}:
             services.add(f"php-{parts[1]}")
     return services
 

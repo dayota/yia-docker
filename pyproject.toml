@@ -38,11 +38,14 @@ where = ["src"]
 "share/yia/docker/php" = [
   "docker/php/default-pool.conf",
   "docker/php/entrypoint.sh",
+  "docker/php/php-secrets.php",
+  "docker/php/php-supervisor.php",
   "docker/php/global.conf",
   "docker/php/xdebug.ini"
 ]
 "share/yia/docker/php/8.2" = ["docker/php/8.2/Dockerfile"]
 "share/yia/docker/php/8.4" = ["docker/php/8.4/Dockerfile"]
+"share/yia/docker/php/8.5" = ["docker/php/8.5/Dockerfile"]
 "share/yia/docker/node" = [
   "docker/node/develop.sh",
   "docker/node/entrypoint.sh",
@@ -50,8 +53,8 @@ where = ["src"]
 ]
 "share/yia/docker/node/22" = ["docker/node/22/Dockerfile"]
 "share/yia/docker/node/24" = ["docker/node/24/Dockerfile"]
-"share/yia/docker/postgres" = ["docker/postgres/init-sql.sh"]
-"share/yia/docker/redis" = ["docker/redis/start.sh"]
+"share/yia/docker/postgres" = ["docker/postgres/init-sql.sh", "docker/postgres/start.sh"]
+"share/yia/docker/redis" = ["docker/redis/start.sh", "docker/redis/healthcheck.sh", "docker/redis/read-secret.sh"]
 "share/yia/templates/documentation" = [
   "templates/documentation/AGENTS.fragment.md",
   "templates/documentation/INDEX.md",

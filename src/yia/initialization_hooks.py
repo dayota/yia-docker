@@ -8,6 +8,7 @@ from pathlib import Path
 from yia.config.model import ApplicationConfig, NormalizedConfig, OnceHookConfig
 from yia.docker.node import node_service_name
 from yia.docker.python import python_service_name
+from yia.docker.secrets import application_command
 from yia.errors import ErrorCode, YiaError
 
 
@@ -64,6 +65,7 @@ def _once(
     hook: OnceHookConfig,
     script_in_container: str,
     working_directory: str | None = None,
+    application: ApplicationConfig | None = None,
 ) -> None:
     marker_root = config.project_root / ".yia-data" / "once"
     if marker_root.is_symlink() or marker_root.parent.is_symlink():
@@ -99,7 +101,10 @@ def _once(
             arguments = ["exec", "-T"]
             if working_directory is not None:
                 arguments.extend(["--workdir", working_directory])
-            arguments.extend([service, "sh", script_in_container])
+            command = ["sh", script_in_container]
+            if application is not None and (application.secret_files or application.processes):
+                command = application_command(application.name, command)
+            arguments.extend([service, *command])
             try:
                 compose.run(
                     arguments,
@@ -148,4 +153,5 @@ def run_initialization_hooks(config: NormalizedConfig, compose: object) -> None:
             service=_application_service(application), hook=application.once,
             script_in_container=script,
             working_directory=f"/workspace/{application.name}",
+            application=application,
         )

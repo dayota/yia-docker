@@ -32,6 +32,8 @@ class FixtureCase:
 
 VALID_CASES = (
     FixtureCase("minimal", ()),
+    FixtureCase("php-supervised", ("apache", "php-8.4"),
+                (("php-supervised.localhost", "PHP fallback"),)),
     FixtureCase(
         "php-only",
         ("apache", "php-8.4"),

@@ -129,6 +129,7 @@ def test_public_cli_commands_are_registered() -> None:
         "logs",
         "ps",
         "rebuild",
+        "reload-secrets",
         "reset",
         "restart",
         "shell",

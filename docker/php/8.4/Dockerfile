@@ -27,6 +27,7 @@ RUN set -eux; \
         mbstring \
         opcache \
         pcntl \
+        posix \
         pdo_mysql \
         pdo_pgsql \
         zip; \
@@ -37,6 +38,7 @@ RUN set -eux; \
 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 COPY entrypoint.sh /usr/local/bin/yia-php-entrypoint
+COPY php-secrets.php php-supervisor.php /usr/local/lib/yia/
 COPY xdebug.ini /usr/local/etc/php/conf.d/99-yia-xdebug.ini
 COPY default-pool.conf /usr/local/etc/php-fpm.d/yia-pools.conf
 COPY global.conf /usr/local/etc/php-fpm.d/zz-yia-global.conf

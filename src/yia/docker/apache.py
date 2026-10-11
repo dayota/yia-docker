@@ -45,9 +45,21 @@ def _php_vhost(
         f"proxy:fcgi://{application.runtime.name}:"
         f"{php_pool_port(config, application)}"
     )
-    return [
+    lines = [
         "<VirtualHost *:80>",
         f"    ServerName {_quote(application.web.hostname)}",
+    ]
+    if application.web.proxy_routes:
+        lines.extend(["    ProxyPreserveHost On", '    RequestHeader set X-Forwarded-Proto "http"'])
+        for route in application.web.proxy_routes:
+            process = next(process for process in application.processes if process.name == route.process)
+            proxy_backend = f"http://{application.runtime.name}:{process.port}{route.path}"
+            upgrade = " upgrade=websocket" if route.websocket else ""
+            lines.extend([
+                f"    ProxyPass {_quote(route.path)} {_quote(proxy_backend)} timeout={route.timeout}{upgrade}",
+                f"    ProxyPassReverse {_quote(route.path)} {_quote(proxy_backend)}",
+            ])
+    return lines + [
         f"    DocumentRoot {_quote(public_directory)}",
         "    DirectoryIndex index.php index.html",
         "",

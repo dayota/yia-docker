@@ -212,7 +212,9 @@ Supporte `FORMAT=json`.
 Ne doit pas modifier le projet.
 
 En V2, Redis activé exige `REDIS_PASSWORD` non vide dans l'environnement du
-processus ou `.env`, sans jamais afficher sa valeur. `init` récapitule Redis ;
+processus ou `.env`, sauf référence prioritaire dans `secret_files`, sans jamais
+afficher sa valeur. Les fichiers sont contrôlés par métadonnées uniquement ;
+leur format est contrôlé par les consommateurs au démarrage. `init` récapitule Redis ;
 `status` expose sa version et son état de santé. `logs`, `shell` et `exec`
 acceptent `SERVICE=redis`. Toutes les commandes ordinaires conservent
 `redis-data`, y compris après retrait du service ; seul `destroy-data` peut
@@ -392,6 +394,23 @@ healthchecks. Les volumes nommés sont réutilisés.
 
 ---
 
+## 17 bis. `make reload-secrets`
+
+Valide la configuration et exige une génération à jour. Recrée uniquement les
+services PostgreSQL/Redis et runtimes PHP ayant des fichiers secrets déclarés,
+sans rebuild ni exécution de hooks. La recréation renouvelle aussi les bind
+mounts après remplacement atomique d'un fichier au même chemin. Aucune valeur
+n'est lue par la CLI ni passée en argument. Sans consommateur, aucune commande
+Docker n'est exécutée.
+
+Les volumes persistants sont conservés. Tous les pools/processus d'une version
+PHP concernée sont recréés ensemble : la mutualisation ne permet pas de relancer
+un seul pool indépendamment. La commande attend les healthchecks ; un échec
+ne déclenche aucune boucle de redémarrage. PostgreSQL sur volume existant ne
+migre pas ses mots de passe ; cette rotation appartient à l'opérateur.
+
+---
+
 ## 18. `make ps`
 
 Affiche les services du projet.
@@ -417,6 +436,12 @@ Doit pouvoir distinguer au minimum :
 
 Supporte `FORMAT=json`.
 
+Pour les runtimes supervisés, la sortie expose aussi `processes`, indexé par
+`application/processus`, avec `service`, `state` (`running`, `exited` ou
+`unavailable`) et `exit_code` nullable. Les environnements, commandes et
+valeurs des fichiers ne sont pas recopiés. Un processus sorti dégrade le statut
+même si le healthcheck Docker n'a pas encore observé sa sortie.
+
 ---
 
 ## 20. `make doctor`
@@ -435,6 +460,10 @@ Les checks peuvent inclure :
 - état runtime ;
 - réseau ;
 - services.
+
+Les processus PHP supervisés font l'objet de checks `php-process:<app>/<nom>`
+quand Docker est accessible. La santé du conteneur couvre aussi les sondes
+spécifiques ; aucun diagnostic ne déclenche de redémarrage.
 
 ---
 

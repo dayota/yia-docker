@@ -5,6 +5,92 @@
 > **Identifiant :** `YIA-SPEC-CONFIG`  
 > **Version du schéma courant :** 2 (V1 accepté pour migration)
 
+## Secrets par fichiers en V2
+
+PostgreSQL, Redis et les applications PHP acceptent un bloc optionnel
+`secret_files`, indexé par nom de variable et dont les valeurs sont des chemins
+de fichiers. PostgreSQL accepte `POSTGRES_PASSWORD` et Redis `REDIS_PASSWORD` ;
+les applications PHP acceptent des noms de variables ASCII majuscules
+(`A-Z`, `0-9`, `_`, sans chiffre initial).
+
+```yaml
+services:
+  postgres:
+    version: "18"
+    secret_files:
+      POSTGRES_PASSWORD: /run/project-secrets/postgres-password
+applications:
+  api:
+    type: php
+    path: .
+    source: {type: linked}
+    runtime: {php: "8.4"}
+    secret_files:
+      DB_PASSWORD: /run/project-secrets/postgres-password
+```
+
+Les chemins absolus externes et les sources en tmpfs sont acceptés. Un chemin
+relatif est résolu depuis la racine du projet consommateur. Le fichier doit
+être régulier, non vide et lisible ; une erreur est structurée sans contenu.
+Validation et génération vérifient ses métadonnées sans lire sa valeur.
+Les montages sont en lecture seule, sans création automatique de source.
+
+Un fichier déclaré prévaut sur la variable correspondante de l'environnement
+ou de `.env`. Un fichier indisponible ne déclenche aucun repli vers ces variables.
+Sans référence, les contrats existants sont conservés. Les références seules
+appartiennent au modèle et aux artefacts ; aucune valeur ni empreinte de contenu
+secret n'est conservée. Changer le contenu au même chemin ne change pas le
+hash déclaratif et ne demande aucun redémarrage automatique lors de `update`.
+Le rechargement doit être demandé explicitement par `make reload-secrets` ; il ne migre pas les
+mots de passe PostgreSQL déjà persistés.
+
+FPM reste mutualisé par version, avec injection des variables par pool ; la
+CLI doit utiliser le bootstrap de l'application via `make exec SERVICE=<app>`
+ou `make shell SERVICE=<app>`. Cette injection ne constitue pas une frontière
+de sécurité entre applications partageant utilisateur et conteneur.
+Cette extension V2 est une exception aux règles historiques imposant `.env`
+pour les variables applicatives. Node, Python et OpenBao ne l'acceptent pas.
+
+## Processus PHP et routes proxy en V2
+
+Une application PHP peut déclarer `processes`, un objet indexé par noms
+(`a-z`, `0-9`, tirets). Chaque processus exige `command` (liste non vide
+d'arguments, sans shell implicite) et `stop_grace_period` (durée positive
+explicite en `ms`, `s`, `m` ou `h`). `working_directory`, relatif et contenu
+dans l'application, vaut sa racine lorsqu'il est absent. `depends_on` est une
+liste optionnelle de services Compose activés, attendus healthy ; l'absence
+signifie aucune dépendance supplémentaire. Une dépendance au runtime lui-même
+ou un cycle entre runtimes est refusé. Ces dépendances s'appliquent au conteneur
+mutualisé, donc aussi aux autres applications de sa version.
+
+Le port optionnel `port` est interne uniquement. Il doit être unique dans le
+runtime et distinct des ports des pools FPM. Yia ne déduit ni ne modifie les
+arguments de lancement depuis ce port : la commande doit écouter sur ce port.
+FPM et les processus partagent l'image, les sources et les volumes vendor.
+Les processus reçoivent les références de secrets de leur application.
+
+Un processus n'est jamais redémarré automatiquement, y compris après une sortie
+de code 0. Sa sortie rend le conteneur unhealthy sans arrêter les autres
+processus. Sans `healthcheck`, sa présence est le seul contrôle. Un healthcheck
+explicite exige `test` (arguments sans shell), `interval`, `timeout`, `retries`
+et `start_period`. Ses sorties sont ignorées pour les diagnostics. Les contrôles
+ne déclenchent ni installation de dépendances ni migration.
+
+`web.proxy_routes` est une liste optionnelle de routes PHP. Chaque entrée exige
+`path` (préfixe absolu terminé par `/`), `process` (processus de la même
+application avec port déclaré) et `websocket` (booléen). Les préfixes en conflit,
+les segments `.`/`..` et les caractères permettant une injection Apache sont
+refusés. Les routes précèdent le fallback PHP, conservent le chemin et le Host
+et utilisent le runtime privé. Le timeout HTTP vaut le délai Apache standard
+de 60 secondes ; `timeout` permet une valeur positive explicite en secondes.
+`/apps/` n'est généré que si le projet le déclare. Les autorisations et origines
+restent du ressort de l'application.
+
+Les fichiers secrets PostgreSQL/PHP/Redis contiennent du texte UTF-8 non vide, sans NUL ;
+les LF finaux sont retirés comme avec `POSTGRES_PASSWORD_FILE`. Les autres
+espaces et LF internes sont conservés. La valeur est contrôlée au démarrage,
+jamais pendant la génération.
+
 ## Traefik externe optionnel en V2
 
 Le bloc racine `traefik` active l'intégration avec un Traefik externe utilisant
@@ -125,7 +211,7 @@ services:
     expose: false
 ```
 
-Seuls `enabled`, `version` et `expose` sont autorisés. `enabled` vaut `true`
+Seuls `enabled`, `version`, `expose` et `secret_files` sont autorisés. `enabled` vaut `true`
 si le bloc est présent ; absent ou désactivé, Redis n'apparaît pas dans le
 modèle effectif. `version` est une chaîne obligatoire lorsque Redis est activé,
 sans valeur par défaut : un tag Docker commençant par un numéro majeur de 7
@@ -137,7 +223,8 @@ uniquement ; aucune migration implicite n'est effectuée.
 Redis est **toujours persistant**, dans le volume nommé `redis-data` ; il n'y a
 pas d'option de cache éphémère. Le détail est défini dans `docker.md`.
 `REDIS_PASSWORD` est obligatoire et non vide, fourni par l'environnement du
-processus en priorité, puis `.env`, comme `POSTGRES_PASSWORD`. Il n'est jamais
+processus en priorité, puis `.env`, comme `POSTGRES_PASSWORD`, sauf si un fichier
+est déclaré dans `secret_files` : ce fichier est alors prioritaire. Il n'est jamais
 stocké dans `yia.yml`, le modèle normalisé, l'état ou la documentation.
 Une valeur absente ou vide produit `YIA_CONFIG_INVALID` (sortie 2), avec le nom
 de la variable et sans sa valeur. Redis est joignable sur `redis:6379` dans le
@@ -707,7 +794,8 @@ contenu des dépendances est résolu au démarrage.
 
 ## 12. Variables d'environnement
 
-Les variables d'environnement applicatives sont gérées exclusivement via `.env`.
+Les variables d'environnement applicatives sont gérées via `.env`, avec
+l'exception V2 des références `secret_files` PHP décrite en tête de document.
 
 `yia.yml` ne doit pas contenir :
 
@@ -736,6 +824,12 @@ La commande `make validate` vérifie la présence d'une valeur non vide pour
 `POSTGRES_PASSWORD`, en donnant priorité à l'environnement du processus puis au
 fichier `.env`. La valeur elle-même n'est jamais incluse dans une erreur ou une
 sortie machine.
+
+En V2, une référence `services.postgres.secret_files.POSTGRES_PASSWORD`
+remplace cette exigence et l'interpolation Compose : seules les métadonnées
+du fichier sont validées, puis son contenu est lu au démarrage. Le fichier
+prévaut aussi sur une variable déjà définie. Une référence absente ou invalide
+n'autorise aucun repli vers `.env`.
 
 Pour chaque application Node, `make validate` vérifie également que le fichier
 `package.json` existe, contient un JSON valide et déclare un script `dev` non

@@ -91,6 +91,11 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "secret_files": {
+              "type": "object", "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {"REDIS_PASSWORD": {"$ref": "#/$defs/filePath"}}
+            },
             "enabled": {"type": "boolean", "default": true},
             "version": {
               "type": "string",
@@ -109,6 +114,11 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "secret_files": {
+              "type": "object", "additionalProperties": false,
+              "minProperties": 1,
+              "properties": {"POSTGRES_PASSWORD": {"$ref": "#/$defs/filePath"}}
+            },
             "enabled": {
               "type": "boolean",
               "default": true
@@ -162,6 +172,30 @@
     }
   },
   "$defs": {
+    "duration": {"type": "string", "pattern": "^[1-9][0-9]*(?:ms|s|m|h)$", "not": {"pattern": "[\\r\\n]"}},
+    "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1, "not": {"pattern": "\\u0000"}}},
+    "process": {
+      "type": "object", "additionalProperties": false,
+      "required": ["command", "stop_grace_period"],
+      "properties": {
+        "command": {"$ref": "#/$defs/argv"},
+        "working_directory": {"$ref": "#/$defs/filePath"},
+        "stop_grace_period": {"$ref": "#/$defs/duration"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "depends_on": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$"}},
+        "healthcheck": {
+          "type": "object", "additionalProperties": false,
+          "required": ["test", "interval", "timeout", "retries", "start_period"],
+          "properties": {
+            "test": {"$ref": "#/$defs/argv"},
+            "interval": {"$ref": "#/$defs/duration"},
+            "timeout": {"$ref": "#/$defs/duration"},
+            "retries": {"type": "integer", "minimum": 1},
+            "start_period": {"$ref": "#/$defs/duration"}
+          }
+        }
+      }
+    },
     "filePath": {
       "type": "string",
       "minLength": 1,
@@ -192,6 +226,16 @@
         "source"
       ],
       "properties": {
+        "processes": {
+          "type": "object", "minProperties": 1,
+          "propertyNames": {"pattern": "^[a-z0-9][a-z0-9-]*$", "not": {"pattern": "[\\r\\n]"}},
+          "additionalProperties": {"$ref": "#/$defs/process"}
+        },
+        "secret_files": {
+          "type": "object", "minProperties": 1,
+          "propertyNames": {"pattern": "^[A-Z_][A-Z0-9_]*$", "not": {"pattern": "[\\r\\n]"}},
+          "additionalProperties": {"$ref": "#/$defs/filePath"}
+        },
         "type": {
           "enum": [
             "php",
@@ -308,6 +352,19 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "proxy_routes": {
+              "type": "array", "minItems": 1,
+              "items": {
+                "type": "object", "additionalProperties": false,
+                "required": ["path", "process", "websocket"],
+                "properties": {
+                  "path": {"type": "string", "pattern": "^/(?:[A-Za-z0-9_-]+/)+$", "not": {"pattern": "[\\r\\n]"}},
+                  "process": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+                  "websocket": {"type": "boolean"},
+                  "timeout": {"type": "integer", "minimum": 1}
+                }
+              }
+            },
             "hostname": {
               "$ref": "#/$defs/hostname"
             },
@@ -325,6 +382,13 @@
         }
       },
       "allOf": [
+        {"if": {"required": ["processes"]}, "then": {"properties": {"type": {"const": "php"}}}},
+        {"if": {"properties": {"web": {"required": ["proxy_routes"]}}, "required": ["web"]},
+         "then": {"properties": {"type": {"const": "php"}}}},
+        {
+          "if": {"required": ["secret_files"]},
+          "then": {"properties": {"type": {"const": "php"}}}
+        },
         {
           "if": {
             "properties": {

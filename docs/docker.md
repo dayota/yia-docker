@@ -204,8 +204,8 @@ officielles épinglées sont :
 Chaque runtime possède son Dockerfile sous `docker/php/<version>/`. Le contexte
 de build commun est `docker/php/`.
 
-Les extensions installées sont fixes en V1 : `bcmath`, `intl`, `mbstring`,
-`opcache`, `pcntl`, `pdo_mysql`, `pdo_pgsql`, `xdebug` et `zip`. Elles ne sont
+Les extensions installées sont fixes : `bcmath`, `intl`, `mbstring`,
+`opcache`, `pcntl`, `posix`, `pdo_mysql`, `pdo_pgsql`, `xdebug` et `zip`. Elles ne sont
 pas configurables dans `yia.yml`. Xdebug est installé avec le seul mode
 `debug`, mais le démarrage d'une session est désactivé globalement.
 Dans l'image PHP 8.5, OPcache est déjà compilé dans PHP ; le Dockerfile vérifie
@@ -251,6 +251,65 @@ Le démarrage du débogage utilise un trigger, cible
 `host.docker.internal:9003` et ne découvre pas automatiquement une adresse
 client depuis la requête HTTP. Compose ajoute l'alias `host-gateway` nécessaire
 sur Linux.
+
+---
+
+## 5 bis. Secrets et supervision PHP en V2
+
+Les références `secret_files` sont des montages bind en lecture seule dans
+`/run/yia-secrets/<consommateur>/<variable>`, sans création automatique du
+fichier source. Aucun contenu n'est lu par le moteur ni inclus dans `Config.Env`.
+Un manifeste généré `php/<version>/applications.json` contient uniquement les
+références et les déclarations de processus, jamais les valeurs des fichiers.
+
+Le bootstrap PHP prépare dans le master FPM des variables internes distinctes
+par application ; chaque pool injecte uniquement les variables qui lui sont
+déclarées, avec `clear_env=yes`. Les commandes Make ciblant une application
+et ses scripts `initialization.once` passent par ce bootstrap. Une commande
+`docker compose exec` brute ne bénéficie pas de cette injection.
+Les valeurs restent en mémoire de processus ; Yia ne génère aucun cache Laravel.
+L'application reste responsable de ne pas écrire ses secrets dans ses logs,
+son code ou un cache de configuration persistant. Le conteneur et l'utilisateur
+partagés ne constituent pas une frontière de sécurité entre applications.
+
+Avec `processes`, le PID 1 supervise FPM et les commandes déclarées. FPM garde
+son master root et ses workers `yia` ; les processus applicatifs s'exécutent
+comme `yia`, sans installation Composer ni migration automatique. Les sources
+et volumes vendor sont ceux du runtime partagé. Les ports des processus restent
+privés et ne donnent lieu à aucun conteneur ou label Traefik supplémentaire.
+
+Le superviseur récole les enfants et conserve en tmpfs `/run/yia-php` leur état
+et code de sortie. Un enfant sorti n'est jamais relancé, même avec le code 0.
+Les autres enfants restent actifs et le healthcheck retourne un échec. Sans
+sonde spécifique, seuls les processus vivants sont contrôlés. Une sonde
+explicite est exécutée dans le répertoire et l'environnement de l'application,
+avec timeout et sorties supprimées. La première readiness exige une réussite ;
+les échecs suivants suivent `retries`, après `start_period`, sans relance.
+
+À l'arrêt, les groupes applicatifs reçoivent SIGTERM et leur délai déclaré,
+puis SIGKILL si nécessaire. FPM reçoit SIGQUIT avec dix secondes de grâce.
+Le délai Compose vaut le maximum de ces délais plus une seconde pour la récolte.
+Les dépendances des processus sont agrégées sur le conteneur mutualisé.
+
+Les routes PHP `web.proxy_routes` sont placées avant le fallback FastCGI.
+Apache transmet le préfixe inchangé au port privé du processus déclaré,
+préserve Host et indique `X-Forwarded-Proto: http`. Une route `websocket: true`
+active `upgrade=websocket` de `mod_proxy_http` déjà installé. Ni `/apps/`, ni
+autorisation d'origine, ni TLS ne sont ajoutés implicitement.
+
+### Consommateurs PostgreSQL et Redis
+
+En mode fichier, PostgreSQL reçoit uniquement `POSTGRES_PASSWORD_FILE` ; un
+adaptateur vérifie le format avant l'entrypoint officiel. Celui-ci initialise
+le mot de passe uniquement sur un volume neuf. Recharger le fichier ne modifie
+donc pas le mot de passe d'un rôle existant.
+
+Redis reçoit uniquement `REDIS_PASSWORD_FILE`. Le lancement produit son ACL
+avec empreinte dans `/tmp`, monté en tmpfs, et retire le mot de passe de son
+environnement avant de lancer Redis. Son healthcheck lit le fichier et transmet
+le mot de passe via l'environnement éphémère du client, jamais par argument.
+La persistance AOF/RDB dans `redis-data` demeure inchangée. Sans fichier déclaré,
+les comportements précédents sont conservés.
 
 ---
 

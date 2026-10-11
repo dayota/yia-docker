@@ -22,6 +22,8 @@ from yia.docker.runner import (
 )
 from yia.doctor import run_checks
 from yia.docker.openbao import openbao_status, with_openbao_readiness
+from yia.docker.secrets import application_command
+from yia.docker.processes import process_status
 from yia.errors import ErrorCode, YiaError
 from yia.initialization import initialize_project
 from yia.initialization_hooks import run_initialization_hooks
@@ -82,6 +84,10 @@ def emit(payload: dict, *, as_json: bool) -> None:
         for service in payload["services"]:
             health = f", {service['health']}" if service.get("health") else ""
             print(f"- {service['service']}: {service['state']}{health}")
+    if "processes" in payload:
+        for name, process in sorted(payload["processes"].items()):
+            code = f", exit={process['exit_code']}" if process["exit_code"] is not None else ""
+            print(f"- process {name}: {process['state']}{code}")
 
 
 def _project(args: argparse.Namespace, *, require_environment: bool = True) -> Project:
@@ -331,6 +337,18 @@ def cmd_rebuild(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reload_secrets(args: argparse.Namespace) -> int:
+    project = _project(args)
+    require_current_generation(project)
+    consumers = {app.runtime.name for app in project.config.applications if app.secret_files}
+    consumers.update(service.name for service in (project.config.services.postgres, project.config.services.redis)
+                     if service is not None and service.secret_files)
+    if consumers:
+        _compose(project).force_recreate_services(tuple(sorted(consumers)))
+    emit({"status": "ok", "message": "Secrets rechargés par recréation des consommateurs ; données préservées."}, as_json=False)
+    return 0
+
+
 def _services_payload(project: Project) -> list[dict[str, str | None]]:
     return [
         container.to_dict()
@@ -411,6 +429,12 @@ def cmd_status(args: argparse.Namespace) -> int:
             status = "error"
             payload["status"] = status
             payload["environment"] = "degraded" if services else "stopped"
+    if any(app.processes for app in project.config.applications):
+        payload["processes"] = process_status(project.config, _compose(project))
+        if services and any(item["state"] != "running" for item in payload["processes"].values()):
+            status = "error"
+            payload["status"] = status
+            payload["environment"] = "degraded"
     emit(payload, as_json=args.json)
     return 1 if status == "error" else 0
 
@@ -439,7 +463,11 @@ def cmd_shell(args: argparse.Namespace) -> int:
     project = _project(args)
     require_current_generation(project)
     service = resolve_service(project.config, args.service)
-    _compose(project).shell(service)
+    application = next((app for app in project.config.applications if app.name == args.service), None)
+    if application is not None and (application.secret_files or application.processes):
+        _compose(project).execute(service, application_command(application.name, ["/bin/sh"]))
+    else:
+        _compose(project).shell(service)
     return 0
 
 
@@ -453,6 +481,9 @@ def cmd_exec(args: argparse.Namespace) -> int:
             ErrorCode.GENERIC,
             "CMD doit contenir une commande non vide.",
         )
+    application = next((app for app in project.config.applications if app.name == args.service), None)
+    if application is not None and (application.secret_files or application.processes):
+        command = application_command(application.name, command)
     _compose(project).execute(service, command)
     return 0
 
@@ -581,6 +612,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("restart", cmd_restart),
         ("build", cmd_build),
         ("rebuild", cmd_rebuild),
+        ("reload-secrets", cmd_reload_secrets),
         ("reset", cmd_reset),
         ("destroy", cmd_destroy),
         ("clean", cmd_clean),

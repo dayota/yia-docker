@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 import yaml
+from .secrets import PHP_APPLICATIONS_PATH, PHP_BOOTSTRAP, secret_mounts, secret_target
 
 from yia.config import ApplicationConfig, NormalizedConfig
 from yia.generators import GeneratedFile, GenerationContext
@@ -20,6 +21,7 @@ from .php import (
     PHP_FPM_CONFIG_CONTAINER_PATH,
     php_applications_by_runtime,
     php_configuration_path,
+    duration_seconds,
 )
 from .python import (
     PYTHON_BUILD_CONTEXT,
@@ -180,6 +182,13 @@ def _php_services(
                     ),
                 ]
             )
+            mounts.extend(secret_mounts(application.name, application.secret_files))
+
+        has_secrets = any(application.secret_files for application in applications)
+        has_processes = any(application.processes for application in applications)
+        if has_secrets or has_processes:
+            mounts.append({"type": "bind", "source": f"../php/{version}/applications.json",
+                           "target": PHP_APPLICATIONS_PATH, "read_only": True})
 
         services[runtime_name] = {
             "image": f"yia/php:{version}-{YIA_VERSION}",
@@ -198,8 +207,30 @@ def _php_services(
             ],
             "volumes": mounts,
             "networks": [NETWORK_NAME],
-            "healthcheck": _healthcheck(["CMD", "php-fpm", "-t"]),
+            "healthcheck": _healthcheck(
+                ["CMD", "php", PHP_BOOTSTRAP, "fpm", PHP_APPLICATIONS_PATH, "php-fpm", "-t"]
+                if has_secrets else ["CMD", "php-fpm", "-t"]
+            ),
         }
+        if has_processes:
+            service = services[runtime_name]
+            service["command"] = ["php", "/usr/local/lib/yia/php-supervisor.php", "run", PHP_APPLICATIONS_PATH]
+            service["tmpfs"] = ["/run/yia-php"]
+            dependencies = sorted({dependency for app in applications for process in app.processes for dependency in process.depends_on})
+            if dependencies:
+                service["depends_on"] = {dependency: {"condition": "service_healthy"} for dependency in dependencies}
+            grace = max((process.stop_grace_period for app in applications for process in app.processes), key=duration_seconds)
+            service["stop_grace_period"] = f"{max(10, duration_seconds(grace)) + 1:g}s"
+            service["expose"].extend(str(process.port) for app in applications for process in app.processes if process.port is not None)
+            service["healthcheck"] = _healthcheck(["CMD", "php", "/usr/local/lib/yia/php-supervisor.php", "health", PHP_APPLICATIONS_PATH])
+            probes = [process.healthcheck for app in applications for process in app.processes if process.healthcheck is not None]
+            if probes:
+                service["healthcheck"].update(
+                    interval=f"{min(10, *(duration_seconds(probe.interval) for probe in probes)):g}s",
+                    timeout=f"{sum(duration_seconds(probe.timeout) for probe in probes) + 1:g}s",
+                    retries=1,
+                    start_period=f"{max(duration_seconds(probe.start_period) for probe in probes):g}s",
+                )
 
     return services, volumes
 
@@ -311,6 +342,18 @@ def _postgres_service(config: NormalizedConfig) -> dict[str, object] | None:
             ]
         ),
     }
+    if postgres.secret_files:
+        service["environment"].pop("POSTGRES_PASSWORD", None)
+        service["environment"]["POSTGRES_PASSWORD_FILE"] = secret_target("postgres", "POSTGRES_PASSWORD")
+        service["volumes"].extend(secret_mounts("postgres", postgres.secret_files))
+        service["entrypoint"] = ["/bin/sh", "/yia/start.sh"]
+        service["command"] = ["postgres"]
+        service["volumes"].extend([
+            {"type": "bind", "source": "../../.yia/docker/postgres/start.sh",
+             "target": "/yia/start.sh", "read_only": True},
+            {"type": "bind", "source": "../../.yia/docker/redis/read-secret.sh",
+             "target": "/yia/read-secret.sh", "read_only": True},
+        ])
     if postgres.init_sql is not None:
         service["volumes"].extend(
             [
@@ -369,6 +412,19 @@ def _redis_service(config: NormalizedConfig) -> dict[str, object] | None:
             'test "$$(REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli --raw ping)" = PONG',
         ]),
     }
+    if redis.secret_files:
+        service["environment"] = {"REDIS_PASSWORD_FILE": secret_target("redis", "REDIS_PASSWORD")}
+        service["volumes"].extend(secret_mounts("redis", redis.secret_files))
+        service["volumes"].append({
+            "type": "bind", "source": "../../.yia/docker/redis/healthcheck.sh",
+            "target": "/yia/redis-healthcheck.sh", "read_only": True,
+        })
+        service["volumes"].append({
+            "type": "bind", "source": "../../.yia/docker/redis/read-secret.sh",
+            "target": "/yia/read-secret.sh", "read_only": True,
+        })
+        service["tmpfs"] = ["/tmp"]
+        service["healthcheck"] = _healthcheck(["CMD", "sh", "/yia/redis-healthcheck.sh"])
     if redis.expose:
         service["ports"] = ["127.0.0.1:6379:6379"]
     return service

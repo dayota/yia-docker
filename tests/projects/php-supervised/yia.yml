@@ -1,0 +1,31 @@
+version: 2
+project:
+  name: php-supervised
+environment:
+  domain: php-supervised.localhost
+applications:
+  api:
+    type: php
+    path: api
+    source: {type: linked}
+    runtime: {php: "8.4"}
+    processes:
+      worker:
+        command: [php, worker.php]
+        stop_grace_period: 2s
+      backend:
+        command: [php, backend.php]
+        port: 8080
+        stop_grace_period: 2s
+        healthcheck:
+          test: [php, probe.php]
+          interval: 1s
+          timeout: 1s
+          retries: 1
+          start_period: 1s
+    web:
+      hostname: php-supervised.localhost
+      public_directory: public
+      proxy_routes:
+        - {path: /app/, process: backend, websocket: true, timeout: 1}
+        - {path: /apps/, process: backend, websocket: false, timeout: 1}

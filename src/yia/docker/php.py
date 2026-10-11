@@ -1,16 +1,44 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import json
+from pathlib import Path
 from typing import Iterable
 
 from yia.config import ApplicationConfig, NormalizedConfig
 from yia.generators import GeneratedFile, GenerationContext
+from .secrets import pool_secret_variable, secret_target
 
 
 PHP_FPM_BASE_PORT = 9000
 PHP_FPM_CONFIG_CONTAINER_PATH = "/usr/local/etc/php-fpm.d/yia-pools.conf"
 PHP_BUILD_CONTEXT = "../../.yia/docker/php"
 SUPPORTED_PHP_VERSIONS = ("8.2", "8.4", "8.5")
+
+
+def duration_seconds(value: str) -> float:
+    for suffix, factor in (("ms", .001), ("s", 1), ("m", 60), ("h", 3600)):
+        if value.endswith(suffix):
+            return int(value[:-len(suffix)]) * factor
+    raise ValueError("invalid duration")
+
+
+def runtime_application_manifest(applications):
+    result = {}
+    for app in applications:
+        result[app.name] = {"secret_files": {variable: secret_target(app.name, variable) for variable, _ in app.secret_files}}
+        if app.processes:
+            processes = {}
+            for process in app.processes:
+                raw = process.to_dict()
+                raw["working_directory"] = str(Path("/workspace") / app.name / process.working_directory.relative_to(app.path))
+                raw["stop_grace_seconds"] = duration_seconds(process.stop_grace_period)
+                if process.healthcheck is not None:
+                    for field in ("interval", "timeout", "start_period"):
+                        raw["healthcheck"][field] = duration_seconds(getattr(process.healthcheck, field))
+                processes[process.name] = raw
+            result[app.name]["processes"] = processes
+    return result
 
 
 def php_configuration_path(version: str) -> str:
@@ -65,7 +93,8 @@ def _pool(application: ApplicationConfig, port: int) -> list[str]:
         "php_admin_flag[log_errors] = on",
         "php_admin_value[error_log] = /proc/self/fd/2",
         f"php_admin_value[xdebug.start_with_request] = {xdebug_start}",
-    ]
+    ] + [f"env[{variable}] = ${pool_secret_variable(application.name, variable)}"
+         for variable, _ in application.secret_files]
 
 
 def _serialize_pools(applications: tuple[ApplicationConfig, ...]) -> str:
@@ -86,3 +115,8 @@ class PhpGenerator:
                 php_configuration_path(version),
                 _serialize_pools(applications),
             )
+            if any(application.secret_files or application.processes for application in applications):
+                yield GeneratedFile.text(
+                    f"php/{version}/applications.json",
+                    json.dumps(runtime_application_manifest(applications), sort_keys=True, indent=2) + "\n",
+                )

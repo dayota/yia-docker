@@ -519,6 +519,12 @@ Un ADR n'a priorité que dans son périmètre.
 
 ### 11.1. Définition
 
+Lorsqu'un bloc V2 `secret_files` est présent, la vue dérivée indique uniquement
+les propriétaires et les noms de variables fournis par fichier. Elle ne recopie
+ni les chemins sources, ni les valeurs, ni des empreintes de contenu secret.
+Elle n'annonce pas une obligation de mot de passe dans `.env` pour un service
+dont le mot de passe est fourni par fichier.
+
 Lorsqu'un bloc Traefik externe V2 est déclaré, la vue dérivée indique le
 réseau partagé, les conteneurs explicitement exposés et l'absence de port hôte
 Apache. Elle ne recopie pas les valeurs des labels libres ; `yia.yml` en reste

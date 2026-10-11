@@ -138,6 +138,14 @@ fuite de données.
 
 ## 9. Sécurité et persistance
 
+Les références V2 `secret_files` ne sont jamais des entrées de contenu pour les
+générateurs. Aucun fichier secret n'est ouvert pour générer le snapshot ; ses
+valeurs et empreintes ne sont pas copiées. La configuration PHP additionnelle
+`php/<version>/applications.json` contient les références aux chemins
+de montage internes et les déclarations des processus, sans valeur de fichier.
+Modifier le contenu d'une source au même chemin ne change
+ni le snapshot, ni son manifeste, ni son état déclaratif.
+
 Le moteur ne touche jamais :
 
 - `.yia/` ;

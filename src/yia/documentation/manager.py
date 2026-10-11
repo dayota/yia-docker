@@ -369,6 +369,8 @@ def render_development_environment(config: NormalizedConfig) -> str:
     if redis is not None:
         lines.extend([
             "- Redis est disponible sur `redis:6379` dans le réseau Docker privé.",
+            "- `REDIS_PASSWORD` est fourni par fichier externe ; sa valeur n'est jamais documentée."
+            if redis.secret_files else
             "- `REDIS_PASSWORD` est obligatoire dans `.env` ; sa valeur n'est jamais documentée.",
             "- Le volume `redis-data` est conservé par les commandes ordinaires.",
             "",
@@ -390,6 +392,23 @@ def render_development_environment(config: NormalizedConfig) -> str:
             "- Le routage applicatif reste assuré par Apache ; les labels sont définis dans `yia.yml` et ne sont pas recopiés ici.",
             "- Les certificats, entrypoints, middlewares et credentials appartiennent au Traefik externe.", "",
         ])
+    secret_owners = [service for service in (postgres, redis) if service is not None and service.secret_files]
+    secret_owners.extend(app for app in config.applications if app.secret_files)
+    if secret_owners:
+        lines.extend(["## Secrets par fichiers", ""])
+        for owner in secret_owners:
+            variables = ", ".join(f"`{name}`" for name, _ in owner.secret_files)
+            lines.append(f"- `{owner.name}` : {variables} ; fichiers montés en lecture seule.")
+        lines.extend(["", "Les valeurs et chemins sources ne sont pas recopiés dans cette documentation.", ""])
+    if any(app.processes for app in config.applications):
+        lines.extend(["## Processus PHP supervisés", ""])
+        for app in config.applications:
+            for process in app.processes:
+                lines.append(f"- `{app.name}/{process.name}` dans `{app.runtime.name}` ; port interne : {process.port or 'aucun'} ; sans redémarrage automatique.")
+            if app.web is not None:
+                for route in app.web.proxy_routes:
+                    lines.append(f"- Route Apache `{route.path}` vers `{app.name}/{route.process}` ; WebSocket : {'oui' if route.websocket else 'non'}.")
+        lines.append("")
     return "\n".join(lines)
 
 

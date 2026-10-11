@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+if [ -n "${REDIS_PASSWORD_FILE:-}" ]; then
+    . /yia/read-secret.sh
+    REDIS_PASSWORD="$(yia_read_secret "$REDIS_PASSWORD_FILE")" || exit 2
+fi
+
 # Keep the secret out of server arguments and persistent data. Redis ACLs
 # accept SHA-256 hashes, so quoting and special characters need no encoding.
 if [ -z "${REDIS_PASSWORD:-}" ]; then

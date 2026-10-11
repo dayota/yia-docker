@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import os
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +11,7 @@ from jsonschema import Draft202012Validator, ValidationError
 
 from yia.errors import ErrorCode, YiaError
 from .traefik import traefik_errors
+from .processes import process_errors
 
 
 HOSTNAME_PATTERN = re.compile(
@@ -67,6 +70,15 @@ def _expected_constraint(error: ValidationError) -> Any:
 
 
 def _format_schema_error(error: ValidationError) -> dict[str, Any]:
+    runtime_fields = {"secret_files", "processes", "proxy_routes"}
+    if any(field in error.absolute_path for field in runtime_fields) or (
+        isinstance(error.instance, dict) and runtime_fields.intersection(error.instance)
+    ):
+        return {
+            "path": _format_path(error.absolute_path),
+            "message": "invalid runtime configuration (values omitted)",
+            "constraint": error.validator,
+        }
     if "traefik" in error.absolute_path or (
         error.validator == "additionalProperties"
         and isinstance(error.instance, dict) and "traefik" in error.instance
@@ -380,6 +392,28 @@ def validate_config(
     if not schema_errors:
         errors.extend(_semantic_errors(config, project_root))
         errors.extend(traefik_errors(config))
+        errors.extend(process_errors(config, project_root))
+        blocks = [(f"{section}.{name}", block)
+                  for section in ("services", "applications")
+                  for name, block in config.get(section, {}).items()]
+        for name, block in blocks:
+            if block.get("secret_files") and block.get("enabled", True) is False:
+                errors.append({"path": f"{name}.secret_files", "constraint": "enabled_service",
+                               "message": "secret files require an enabled service"})
+            for variable, value in block.get("secret_files", {}).items():
+                if project_root is None:
+                    continue
+                reference = project_root / value
+                try:
+                    metadata = reference.stat()
+                    available = (stat.S_ISREG(metadata.st_mode) and metadata.st_size > 0
+                                 and bool(metadata.st_mode & 0o444) and os.access(reference, os.R_OK))
+                except OSError:
+                    available = False
+                if not available:
+                    errors.append({"path": f"{name}.secret_files.{variable}",
+                                   "constraint": "readable_non_empty_secret_file",
+                                   "message": "secret source must be an existing readable non-empty regular file"})
 
     if not errors:
         return

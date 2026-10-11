@@ -39,7 +39,16 @@ done
 
 case "${1:-}" in
     php-fpm|php-fpm*)
+        if [ -f /yia/php-applications.json ]; then
+            exec php /usr/local/lib/yia/php-secrets.php fpm /yia/php-applications.json "$@"
+        fi
         exec docker-php-entrypoint "$@"
+        ;;
+    php)
+        if [ "${2:-}" = /usr/local/lib/yia/php-supervisor.php ]; then
+            exec "$@"
+        fi
+        exec su-exec yia docker-php-entrypoint "$@"
         ;;
     *)
         exec su-exec yia docker-php-entrypoint "$@"

@@ -177,6 +177,8 @@ Les règles suivantes sont impératives.
 14. Les secrets ne doivent jamais être écrits dans `yia.yml` ni dans un fichier versionné par défaut.
 15. Une commande Yia doit produire le même résultat pour un même `yia.yml`, une même version de Yia et un même ensemble d'entrées externes.
 16. Un SQL d'initialisation PostgreSQL ne doit jamais être rejoué silencieusement sur un volume existant ; un script « une seule fois » ne doit être rejoué qu'en l'absence de son marqueur de succès persistant.
+17. En V2, les secrets référencés par fichiers sont lus uniquement à l'exécution ; leurs valeurs et empreintes ne doivent pas apparaître dans les artefacts générés, l'état ou les métadonnées Docker de création.
+18. Les processus PHP déclarés restent dans le runtime FPM mutualisé. Leur sortie dégrade sa santé sans redémarrage automatique ; le rechargement des fichiers secrets est une opération Make explicite.
 
 ---
 

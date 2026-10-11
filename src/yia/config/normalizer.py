@@ -25,7 +25,33 @@ from .model import (
     TraefikConfig,
     TraefikContainerConfig,
     WebConfig,
+    ProcessConfig,
+    HealthcheckConfig,
+    ProxyRouteConfig,
 )
+
+
+def _normalize_secrets(block: Mapping[str, Any], root: Path):
+    return tuple(
+        (name, (root / path).absolute())
+        for name, path in sorted(block.get("secret_files", {}).items())
+    )
+
+
+def _normalize_processes(application, root):
+    result = []
+    for name, raw in sorted(application.get("processes", {}).items()):
+        health = raw.get("healthcheck")
+        result.append(ProcessConfig(
+            name=name, command=tuple(raw["command"]),
+            working_directory=(root / raw.get("working_directory", ".")).resolve(),
+            depends_on=tuple(sorted(raw.get("depends_on", []))),
+            stop_grace_period=raw["stop_grace_period"], port=raw.get("port"),
+            healthcheck=HealthcheckConfig(test=tuple(health["test"]), interval=health["interval"],
+                                         timeout=health["timeout"], retries=health["retries"],
+                                         start_period=health["start_period"]) if health else None,
+        ))
+    return tuple(result)
 
 
 def _normalize_once(
@@ -58,6 +84,7 @@ def _normalize_services(
             name="redis",
             version=str(redis["version"]),
             expose=bool(redis.get("expose", False)),
+            secret_files=_normalize_secrets(redis, project_root),
         )
         if isinstance(redis, Mapping) and redis.get("enabled", True)
         else None
@@ -72,6 +99,7 @@ def _normalize_services(
             name="postgres",
             version=str(postgres["version"]),
             expose=bool(postgres.get("expose", False)),
+            secret_files=_normalize_secrets(postgres, project_root),
             init_sql=(
                 (project_root / str(postgres["initialization"]["sql"])).resolve()
                 if isinstance(postgres.get("initialization"), Mapping)
@@ -148,6 +176,10 @@ def _normalize_web(
             else None
         ),
         port=int(web["port"]) if "port" in web else None,
+        proxy_routes=tuple(ProxyRouteConfig(
+            path=route["path"], process=route["process"], websocket=route["websocket"],
+            timeout=route.get("timeout", 60),
+        ) for route in sorted(web.get("proxy_routes", []), key=lambda route: route["path"])),
     )
 
 
@@ -186,6 +218,8 @@ def _normalize_applications(
                 framework=_normalize_framework(application),
                 web=_normalize_web(application, application_path),
                 source=normalized_source,
+                secret_files=_normalize_secrets(application, project_root),
+                processes=_normalize_processes(application, application_path),
                 once=_normalize_once(
                     application.get("initialization"), root=application_path
                 ),
