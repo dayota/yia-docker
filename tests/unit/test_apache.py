@@ -190,7 +190,7 @@ def test_apache_image_uses_pinned_official_base_and_generated_include() -> None:
         encoding="utf-8"
     )
 
-    assert dockerfile.startswith("FROM httpd:2.4.68-alpine3.24\n")
+    assert dockerfile.startswith("FROM httpd:2.4.69-alpine3.24\n")
     for module in ("headers", "proxy", "proxy_fcgi", "proxy_http", "rewrite"):
         assert f"LoadModule {module}_module" in dockerfile
     assert "yia-vhosts.conf" in dockerfile

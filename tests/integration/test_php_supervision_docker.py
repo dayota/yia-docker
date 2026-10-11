@@ -71,6 +71,7 @@ def test_file_secrets_supervision_and_apache_protocols(tmp_path):
         make("build")
         compose("up", "-d", "--wait")
         compose("exec", "-T", "apache", "httpd", "-t")
+        assert "Apache/2.4.69 " in compose("exec", "-T", "apache", "httpd", "-v").stdout
         expected_hash = hashlib.sha256(sentinel.encode()).hexdigest()
         assert php('echo hash("sha256",getenv("DB_PASSWORD"));') == expected_hash
         assert expected_hash in request("/", "Connection: close\r\n")

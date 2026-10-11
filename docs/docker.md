@@ -84,7 +84,7 @@ Le service Compose logique s'appelle `apache`. Il utilise l'image
 `service_healthy` des runtimes portant les applications exposées.
 
 L'image Yia Apache est construite depuis `docker/apache/` sur la base officielle
-`httpd:2.4.68-alpine3.24`. La topologie Compose utilise le contexte relatif
+`httpd:2.4.69-alpine3.24`. La topologie Compose utilise le contexte relatif
 `../../.yia/docker/apache`, résolu depuis
 `.yia-runtime/compose/compose.yaml` dans un projet consommateur.
 

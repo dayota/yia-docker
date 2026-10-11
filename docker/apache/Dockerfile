@@ -1,4 +1,4 @@
-FROM httpd:2.4.68-alpine3.24
+FROM httpd:2.4.69-alpine3.24
 
 COPY yia-health.conf /usr/local/apache2/conf/extra/yia-health.conf
 
