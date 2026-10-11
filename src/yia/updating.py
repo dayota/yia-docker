@@ -169,7 +169,7 @@ def update_project(project: Project) -> UpdateResult:
         previous_compose_existed=previous_compose_existed,
     )
 
-    compose_applied = bool(services)
+    compose_applied = bool(services or _compose_services(previous_compose))
     if compose_applied:
         from yia.initialization_hooks import run_initialization_hooks
 
@@ -179,9 +179,14 @@ def update_project(project: Project) -> UpdateResult:
             compose_path=project.compose_path,
             dotenv_path=project.dotenv_path,
         )
-        compose.converge()
-        compose.force_recreate_services(forced_services)
-        run_initialization_hooks(project.config, compose)
+        if services:
+            compose.converge()
+            compose.force_recreate_services(forced_services)
+            run_initialization_hooks(project.config, compose)
+        else:
+            # Removing the last declared service still requires convergence.
+            # Compose down removes orphan containers/networks, never volumes.
+            compose.down()
 
     if not generation_is_current(project):
         raise YiaError(

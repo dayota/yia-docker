@@ -431,6 +431,38 @@ Cette différence de chemin de montage entre les versions 17 et 18 suit le
 
 ---
 
+## 7 bis. Redis (configuration V2)
+
+Redis est un service optionnel unique nommé `redis`, utilisant l'image
+officielle `redis:<version explicite>` (Redis 7 ou plus). Il partage le réseau
+privé `yia` et écoute sur `redis:6379`. Aucun port hôte n'est publié par défaut ;
+`services.redis.expose: true` publie `127.0.0.1:6379:6379`, sans sélection
+automatique d'un autre port en cas de conflit.
+
+Le volume nommé `redis-data` est monté dans `/data`. La persistance AOF est
+activée avec `appendfsync everysec` et les snapshots RDB sont explicitement
+configurés (`900 1 300 10 60 10000`). AOF peut perdre environ une seconde
+d'écritures en cas de panne brutale. Les commandes `down`, `update`, `restart`,
+`rebuild`, `reset`, `clean` et `destroy`, ainsi que le retrait du service de
+`yia.yml`, conservent ce volume. Seul `destroy-data` peut le supprimer, avec la
+confirmation déjà définie par l'API Make. Changer de version ne migre pas le
+format des données ; le projet doit vérifier la compatibilité du tag choisi.
+
+Le Compose ne contient que la référence `${REDIS_PASSWORD:?...}`. Un adaptateur
+Yia en lecture seule prépare dans le conteneur une ACL temporaire, contenant
+uniquement le SHA-256 du mot de passe pour l'utilisateur `default`. Le serveur
+est ensuite lancé via l'entrypoint officiel en tant qu'utilisateur `redis`.
+Le mot de passe n'est ni un argument du serveur, ni un fichier généré sur
+l'hôte, ni une donnée du volume. Un changement de `REDIS_PASSWORD`, suivi de
+`make update`, applique l'authentification au conteneur recréé sans effacer les
+données. L'accès aux clés, commandes et canaux Pub/Sub est autorisé après
+authentification.
+
+Le healthcheck exige une réponse exacte `PONG` à un `PING` authentifié, avec
+`REDISCLI_AUTH` plutôt qu'un mot de passe dans les arguments. Il suit les
+intervalles et délais communs. `init`, `status`, `doctor`, `logs`, `shell` et
+`exec` reconnaissent le service logique `redis` sans nouvelle cible Make.
+
 ## 8. Volumes
 
 ### 8.1. Volumes persistants

@@ -1115,6 +1115,12 @@ Une évolution d'infrastructure est terminée lorsque :
 
 Les briques comme Redis, RabbitMQ, Mailpit, MinIO ou OpenSearch doivent être ajoutées comme modules optionnels et ne pas devenir des dépendances obligatoires du cœur Yia.
 
+Redis est disponible comme service optionnel en configuration V2 : instance
+mutualisée, persistance obligatoire, mot de passe via `.env` et exposition
+optionnelle limitée à l'hôte local. Les contrats détaillés sont définis dans
+[`configuration.md`](./configuration.md#service-redis-optionnel-en-v2) et
+[`docker.md`](./docker.md#7-bis-redis-configuration-v2).
+
 ---
 
 ## 25. Tests

@@ -173,6 +173,10 @@ vers le scénario de dépannage précis au lieu d'en recopier les étapes.
 - **[U33 — Supprimer volontairement les données](./usages/u33.md)** : prévisualiser les volumes
   ciblés et utiliser `make destroy-data` avec confirmation explicite.
 
+- **[U63 — Démarrer Redis persistant](./usages/u63.md)** : configurer Redis en V2,
+  renseigner `REDIS_PASSWORD`, vérifier l'authentification, la persistance et
+  l'exposition optionnelle sur l'hôte local.
+
 ### 4.6. Cycle de développement quotidien
 
 - **[U34 — Faire converger le projet avec `make update`](./usages/u34.md)** : modifier `yia.yml`,
@@ -282,7 +286,7 @@ scénario ne doit arrêter ou supprimer silencieusement une ressource externe.
 Les sujets suivants ne doivent pas recevoir d'exemple opérationnel tant que les
 spécifications et l'implémentation correspondantes n'existent pas :
 
-- Redis, Mailpit, MinIO, RabbitMQ, OpenSearch ou un service arbitraire ;
+- Mailpit, MinIO, RabbitMQ, OpenSearch ou un service arbitraire ;
 - MySQL, MariaDB ou plusieurs instances PostgreSQL ;
 - frameworks autres que Laravel, Symfony, Laminas, ZendFramework, Nuxt et FastAPI ;
 - versions PHP, Node ou Python autres que celles supportées par le schéma V1 ;

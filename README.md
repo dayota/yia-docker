@@ -17,8 +17,13 @@ projet consommateur sans démarrer Docker. `make update` fait ensuite converger
 la documentation, le runtime généré et les services Docker vers `yia.yml`, sans
 supprimer les données persistantes et sans recréer les services inchangés. Une
 suite end-to-end couvre les fixtures principales, leurs topologies Docker, le
-routage HTTP et les erreurs de configuration. Pour préparer le dépôt puis
-exécuter les contrôles :
+routage HTTP et les erreurs de configuration.
+
+V2 propose également un Redis optionnel et mutualisé, toujours persistant
+(AOF et RDB dans `redis-data`), avec `REDIS_PASSWORD` obligatoire via `.env`.
+Il reste privé par défaut ; `expose: true` publie uniquement
+`127.0.0.1:6379:6379`. Voir [le contrat](./docs/configuration.md#service-redis-optionnel-en-v2)
+et [l'exemple complet](./docs/usages/u63.md).
 
 Le schéma `yia.yml` courant est V2 : chaque application déclare une source
 `managed` (URL SSH, branche et tag Git obligatoires, clonée sous `apps/`) ou
@@ -28,6 +33,8 @@ configurations V1 restent lisibles pour une migration explicite ; voir
 Le schéma V2 accepte également un SQL texte exécuté lors de la création du
 volume PostgreSQL et des scripts de service ou d'application exécutés une
 seule fois après succès, avec marqueurs persistants.
+
+Pour préparer le dépôt puis exécuter les contrôles :
 
 ```bash
 python3 -m venv .venv

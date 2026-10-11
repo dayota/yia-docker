@@ -17,6 +17,7 @@ from .model import (
     PackageManager,
     PostgresConfig,
     ProjectConfig,
+    RedisConfig,
     RuntimeConfig,
     ServicesConfig,
     SourceConfig,
@@ -42,10 +43,21 @@ def _normalize_services(
 ) -> ServicesConfig:
     services = config.get("services", {})
     postgres = services.get("postgres") if isinstance(services, Mapping) else None
+    redis = services.get("redis") if isinstance(services, Mapping) else None
+    redis_config = (
+        RedisConfig(
+            name="redis",
+            version=str(redis["version"]),
+            expose=bool(redis.get("expose", False)),
+        )
+        if isinstance(redis, Mapping) and redis.get("enabled", True)
+        else None
+    )
     if not isinstance(postgres, Mapping) or not postgres.get("enabled", True):
-        return ServicesConfig(postgres=None)
+        return ServicesConfig(postgres=None, redis=redis_config)
 
     return ServicesConfig(
+        redis=redis_config,
         postgres=PostgresConfig(
             name="postgres",
             version=str(postgres["version"]),

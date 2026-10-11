@@ -68,6 +68,10 @@ provenance `source` de chaque application selon
 - [U32 — Gérer `.env` et `.env.example`](./u32.md)
 - [U33 — Supprimer volontairement les données](./u33.md)
 
+## Redis
+
+- [U63 — Démarrer Redis persistant](./u63.md)
+
 ## Cycle de développement quotidien
 
 - [U34 — Faire converger le projet avec `make update`](./u34.md)

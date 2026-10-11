@@ -390,6 +390,11 @@ def cmd_status(args: argparse.Namespace) -> int:
                 if project.config.services.postgres is not None
                 else None
             ),
+            "redis": (
+                project.config.services.redis.version
+                if project.config.services.redis is not None
+                else None
+            ),
         },
         "urls": sorted(
             f"http://{application.web.hostname}"

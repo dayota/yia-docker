@@ -3,6 +3,8 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import shlex
+import socket
 import shutil
 import stat
 import subprocess
@@ -61,6 +63,7 @@ VALID_CASES = (
         ),
     ),
     FixtureCase("postgres", ("postgres",)),
+    FixtureCase("redis", ("redis",)),
     FixtureCase(
         "full",
         ("apache", "node-24-frontend", "php-8.4", "postgres"),
@@ -132,6 +135,17 @@ def _make(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return _run(["make", "--no-print-directory", *arguments], cwd=root)
 
 
+def _redis_cli(root: Path, *arguments: str) -> str:
+    command = shlex.join([
+        "sh", "-ec",
+        'export REDISCLI_AUTH="$REDIS_PASSWORD"; exec redis-cli --raw "$@"',
+        "redis-cli", *arguments,
+    ])
+    result = _make(root, "exec", "SERVICE=redis", f"CMD={command}")
+    assert result.returncode == 0, result.stderr
+    return result.stdout.strip()
+
+
 def _materialize(root: Path, case: FixtureCase) -> str:
     shutil.copytree(FIXTURES / case.name, root, dirs_exist_ok=True)
     project_name = f"yia-e2e-{case.name}-{uuid.uuid4().hex[:8]}"
@@ -147,7 +161,8 @@ def _materialize(root: Path, case: FixtureCase) -> str:
     (root / ".env").write_text(
         "POSTGRES_PASSWORD=e2e-only\n"
         "POSTGRES_USER=yia_e2e\n"
-        "POSTGRES_DB=yia_e2e\n",
+        "POSTGRES_DB=yia_e2e\n"
+        "REDIS_PASSWORD=e2e-redis-only\n",
         encoding="utf-8",
     )
     (root / ".yia").symlink_to(ROOT, target_is_directory=True)
@@ -347,6 +362,16 @@ def test_fixture_runs_end_to_end_with_docker(
         assert all(service["state"] == "running" for service in services)
         assert all(service["health"] == "healthy" for service in services)
 
+        if case.name == "redis":
+            unauthenticated = _make(tmp_path, "exec", "SERVICE=redis", "CMD=redis-cli PING")
+            assert "NOAUTH" in unauthenticated.stdout
+            assert _redis_cli(tmp_path, "-h", "redis", "PING") == "PONG"
+            assert _redis_cli(tmp_path, "SET", "yia:persistence", "preserved") == "OK"
+            functional = _make(tmp_path, "status", "FORMAT=json")
+            assert functional.returncode == 0, functional.stderr
+            assert json.loads(functional.stdout)["versions"]["redis"] == "7.4"
+            assert "e2e-redis-only" not in functional.stdout
+
         diagnosed = _make(tmp_path, "doctor", "FORMAT=json")
         assert diagnosed.returncode == 0, diagnosed.stderr
         assert json.loads(diagnosed.stdout)["status"] == "ok"
@@ -405,5 +430,86 @@ def test_fixture_runs_end_to_end_with_docker(
         } == container_ids
         assert _snapshot(tmp_path / ".yia-runtime") == runtime_before
         assert _contents(tmp_path / "apps") == sources_before
+
+        if case.name == "redis":
+            # Every public lifecycle operation must preserve the named volume.
+            for operations in (("down", "update"), ("restart",), ("rebuild",), ("reset",)):
+                for operation in operations:
+                    result = _make(tmp_path, operation)
+                    assert result.returncode == 0, result.stderr
+                assert _redis_cli(tmp_path, "GET", "yia:persistence") == "preserved"
+
+            # Special characters remain data, and rotation preserves the volume.
+            (tmp_path / ".env").write_text(
+                'REDIS_PASSWORD=\'e2e $redis "quoted" \\ password # test\'\n',
+                encoding="utf-8",
+            )
+            rotated = _make(tmp_path, "update")
+            assert rotated.returncode == 0, rotated.stderr
+            assert _redis_cli(tmp_path, "PING") == "PONG"
+            assert _redis_cli(tmp_path, "GET", "yia:persistence") == "preserved"
+
+            config_path = tmp_path / "yia.yml"
+            raw = yaml.safe_load(config_path.read_text())
+            raw["services"]["redis"]["enabled"] = False
+            config_path.write_text(yaml.safe_dump(raw))
+            removed = _make(tmp_path, "update")
+            assert removed.returncode == 0, removed.stderr
+            stopped = _make(tmp_path, "ps", "FORMAT=json")
+            assert json.loads(stopped.stdout)["services"] == []
+            volume = _run(["docker", "volume", "inspect", f"{project_name}_redis-data"])
+            assert volume.returncode == 0, volume.stderr
+            raw["services"]["redis"]["enabled"] = True
+            config_path.write_text(yaml.safe_dump(raw))
+            restored = _make(tmp_path, "update")
+            assert restored.returncode == 0, restored.stderr
+            assert _redis_cli(tmp_path, "GET", "yia:persistence") == "preserved"
+    finally:
+        _make(tmp_path, "destroy-data", "YES=1")
+
+
+@pytest.mark.skipif(
+    not RUN_DOCKER_INTEGRATION,
+    reason="set YIA_RUN_DOCKER_INTEGRATION=1 to run Docker integration tests",
+)
+def test_redis_exposure_is_local_and_authenticated(tmp_path: Path) -> None:
+    # The public contract fixes 6379; never interrupt an existing listener.
+    with socket.socket() as probe:
+        try:
+            probe.bind(("127.0.0.1", 6379))
+        except OSError:
+            pytest.skip("host port 6379 is already in use")
+    case = next(case for case in VALID_CASES if case.name == "redis")
+    _materialize(tmp_path, case)
+    config_path = tmp_path / "yia.yml"
+    raw = yaml.safe_load(config_path.read_text())
+    raw["services"]["redis"]["expose"] = True
+    config_path.write_text(yaml.safe_dump(raw))
+    try:
+        initialized = _engine_make(tmp_path, "init")
+        assert initialized.returncode == 0, initialized.stderr
+        updated = _make(tmp_path, "update")
+        assert updated.returncode == 0, updated.stderr
+        ps = _make(tmp_path, "ps", "FORMAT=json")
+        container = json.loads(ps.stdout)["services"][0]["name"]
+        ports = _run([
+            "docker", "inspect", "--format", "{{json .NetworkSettings.Ports}}", container,
+        ])
+        assert ports.returncode == 0, ports.stderr
+        assert json.loads(ports.stdout)["6379/tcp"] == [
+            {"HostIp": "127.0.0.1", "HostPort": "6379"},
+        ]
+        with socket.create_connection(("127.0.0.1", 6379), timeout=5) as connection:
+            with connection.makefile("rb") as responses:
+                connection.sendall(b"*1\r\n$4\r\nPING\r\n")
+                assert responses.readline().startswith(b"-NOAUTH")
+                password = b"e2e-redis-only"
+                connection.sendall(
+                    b"*2\r\n$4\r\nAUTH\r\n$" + str(len(password)).encode()
+                    + b"\r\n" + password + b"\r\n"
+                )
+                assert responses.readline() == b"+OK\r\n"
+                connection.sendall(b"*1\r\n$4\r\nPING\r\n")
+                assert responses.readline() == b"+PONG\r\n"
     finally:
         _make(tmp_path, "destroy-data", "YES=1")

@@ -210,6 +210,13 @@ Supporte `FORMAT=json`.
 
 Ne doit pas modifier le projet.
 
+En V2, Redis activé exige `REDIS_PASSWORD` non vide dans l'environnement du
+processus ou `.env`, sans jamais afficher sa valeur. `init` récapitule Redis ;
+`status` expose sa version et son état de santé. `logs`, `shell` et `exec`
+acceptent `SERVICE=redis`. Toutes les commandes ordinaires conservent
+`redis-data`, y compris après retrait du service ; seul `destroy-data` peut
+supprimer ce volume avec la confirmation habituelle.
+
 Les chemins d'initialisation sont contrôlés sans exécuter leurs fichiers.
 Le script d'une application `managed` absente est contrôlé après son clonage.
 
@@ -295,7 +302,9 @@ En V1, `update` :
   changé ;
 - recrée de façon ciblée Apache ou le runtime PHP concerné lorsqu'un fichier de
   configuration généré monté en bind a changé sans modifier le modèle Compose ;
-- n'appelle pas Docker lorsque la topologie ne contient aucun service ;
+- n'appelle pas Docker lorsque ni la topologie cible ni le runtime précédent
+  ne contiennent de service ; si le dernier service est retiré, exécute
+  `docker compose down --remove-orphans` sans suppression de volume ;
 - conserve `.env`, `.yia-data/`, les volumes nommés, les sources et la
   documentation humaine ;
 - refuse le changement automatique du nom de projet Compose et retourne

@@ -258,6 +258,7 @@ def render_development_environment(config: NormalizedConfig) -> str:
     ]
 
     postgres = config.services.postgres
+    redis = config.services.redis
     service_rows: list[tuple[str, ...]] = []
     if postgres is not None:
         service_rows.append(
@@ -268,6 +269,12 @@ def render_development_environment(config: NormalizedConfig) -> str:
                 "`postgres-data`",
             )
         )
+    if redis is not None:
+        service_rows.append((
+            "`redis`", redis.version,
+            "`127.0.0.1:6379:6379`" if redis.expose else "réseau privé uniquement",
+            "`redis-data`",
+        ))
     lines.extend(
         _table(("Service", "Version", "Exposition", "Volume"), service_rows)
     )
@@ -275,6 +282,8 @@ def render_development_environment(config: NormalizedConfig) -> str:
     volume_rows: list[tuple[str, ...]] = []
     if postgres is not None:
         volume_rows.append(("`postgres-data`", "données PostgreSQL"))
+    if redis is not None:
+        volume_rows.append(("`redis-data`", "données Redis (AOF et RDB)"))
     for application in config.applications:
         if application.type == "php":
             volume_rows.append(
@@ -340,6 +349,13 @@ def render_development_environment(config: NormalizedConfig) -> str:
             "",
         ]
     )
+    if redis is not None:
+        lines.extend([
+            "- Redis est disponible sur `redis:6379` dans le réseau Docker privé.",
+            "- `REDIS_PASSWORD` est obligatoire dans `.env` ; sa valeur n'est jamais documentée.",
+            "- Le volume `redis-data` est conservé par les commandes ordinaires.",
+            "",
+        ])
     return "\n".join(lines)
 
 

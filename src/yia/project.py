@@ -70,24 +70,25 @@ def _dotenv_value(path: Path, key: str) -> str | None:
 
 
 def validate_project_environment(project: Project) -> None:
-    if project.config.services.postgres is None:
-        return
-
-    password = os.environ.get("POSTGRES_PASSWORD")
-    if password is None:
-        password = _dotenv_value(project.dotenv_path, "POSTGRES_PASSWORD")
-    if password:
-        return
-
-    raise YiaError(
-        ErrorCode.CONFIG_INVALID,
-        "POSTGRES_PASSWORD doit être défini et non vide dans .env.",
-        {
-            "path": str(project.dotenv_path),
-            "variable": "POSTGRES_PASSWORD",
-            "constraint": "required_non_empty",
-        },
-    )
+    for service, variable in (
+        (project.config.services.postgres, "POSTGRES_PASSWORD"),
+        (project.config.services.redis, "REDIS_PASSWORD"),
+    ):
+        if service is None:
+            continue
+        password = os.environ.get(variable)
+        if password is None:
+            password = _dotenv_value(project.dotenv_path, variable)
+        if not password:
+            raise YiaError(
+                ErrorCode.CONFIG_INVALID,
+                f"{variable} doit être défini et non vide dans .env.",
+                {
+                    "path": str(project.dotenv_path),
+                    "variable": variable,
+                    "constraint": "required_non_empty",
+                },
+            )
 
 
 def validate_project_dependencies(

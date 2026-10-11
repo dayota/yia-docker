@@ -5,7 +5,42 @@
 > **Identifiant :** `YIA-SPEC-CONFIG`  
 > **Version du schéma courant :** 2 (V1 accepté pour migration)
 
-## Initialisation optionnelle en V2
+## Service Redis optionnel en V2
+
+V2 accepte un unique Redis mutualisé par projet, indépendamment de PostgreSQL :
+
+```yaml
+services:
+  redis:
+    enabled: true
+    version: "7.4"
+    expose: false
+```
+
+Seuls `enabled`, `version` et `expose` sont autorisés. `enabled` vaut `true`
+si le bloc est présent ; absent ou désactivé, Redis n'apparaît pas dans le
+modèle effectif. `version` est une chaîne obligatoire lorsque Redis est activé,
+sans valeur par défaut : un tag Docker commençant par un numéro majeur de 7
+ou plus, suivi éventuellement de caractères de tag après `.`, `_` ou `-`.
+L'existence du tag de l'image officielle est vérifiée par Docker au pull.
+`expose` est un booléen, `false` par défaut. V1 conserve son contrat PostgreSQL
+uniquement ; aucune migration implicite n'est effectuée.
+
+Redis est **toujours persistant**, dans le volume nommé `redis-data` ; il n'y a
+pas d'option de cache éphémère. Le détail est défini dans `docker.md`.
+`REDIS_PASSWORD` est obligatoire et non vide, fourni par l'environnement du
+processus en priorité, puis `.env`, comme `POSTGRES_PASSWORD`. Il n'est jamais
+stocké dans `yia.yml`, le modèle normalisé, l'état ou la documentation.
+Une valeur absente ou vide produit `YIA_CONFIG_INVALID` (sortie 2), avec le nom
+de la variable et sans sa valeur. Redis est joignable sur `redis:6379` dans le
+réseau privé ; `expose: true` publie uniquement `127.0.0.1:6379:6379`.
+
+Le modèle normalisé représente Redis activé avec `name: redis`,
+`enabled: true`, `version` et `expose`. Les sorties et hashes des configurations
+existantes sans Redis restent identiques. Redis n'ajoute aucune dépendance
+cliente aux runtimes applicatifs ; chaque application déclare son client.
+
+## Initialisation PostgreSQL optionnelle en V2
 
 PostgreSQL peut déclarer un fichier SQL texte et/ou un script exécuté une
 seule fois après son démarrage. Une application peut aussi déclarer un script :

@@ -51,6 +51,7 @@ where = ["src"]
 "share/yia/docker/node/22" = ["docker/node/22/Dockerfile"]
 "share/yia/docker/node/24" = ["docker/node/24/Dockerfile"]
 "share/yia/docker/postgres" = ["docker/postgres/init-sql.sh"]
+"share/yia/docker/redis" = ["docker/redis/start.sh"]
 "share/yia/templates/documentation" = [
   "templates/documentation/AGENTS.fragment.md",
   "templates/documentation/INDEX.md",

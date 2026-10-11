@@ -1,0 +1,9 @@
+version: 2
+project:
+  name: redis
+environment:
+  domain: redis.localhost
+services:
+  redis:
+    version: "7.4"
+applications: {}

@@ -46,6 +46,24 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "redis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "version": {
+              "type": "string",
+              "pattern": "^(?:[7-9]|[1-9][0-9]+)(?:[._-][0-9A-Za-z._-]+)?$",
+              "not": {"pattern": "[\r\n]"},
+              "minLength": 1
+            },
+            "expose": {"type": "boolean", "default": false}
+          },
+          "allOf": [{
+            "if": {"properties": {"enabled": {"const": true}}},
+            "then": {"required": ["version"]}
+          }]
+        },
         "postgres": {
           "type": "object",
           "additionalProperties": false,

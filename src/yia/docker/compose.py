@@ -337,6 +337,36 @@ def _postgres_service(config: NormalizedConfig) -> dict[str, object] | None:
     return service
 
 
+def _redis_service(config: NormalizedConfig) -> dict[str, object] | None:
+    redis = config.services.redis
+    if redis is None:
+        return None
+    service: dict[str, object] = {
+        "image": f"redis:{redis.version}",
+        "command": ["sh", "/yia/redis-start.sh"],
+        "environment": {
+            "REDIS_PASSWORD": "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}",
+        },
+        "volumes": [
+            {"type": "volume", "source": "redis-data", "target": "/data"},
+            {
+                "type": "bind",
+                "source": "../../.yia/docker/redis/start.sh",
+                "target": "/yia/redis-start.sh",
+                "read_only": True,
+            },
+        ],
+        "networks": [NETWORK_NAME],
+        "healthcheck": _healthcheck([
+            "CMD-SHELL",
+            'test "$$(REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli --raw ping)" = PONG',
+        ]),
+    }
+    if redis.expose:
+        service["ports"] = ["127.0.0.1:6379:6379"]
+    return service
+
+
 def _compose_model(config: NormalizedConfig) -> dict[str, object]:
     services: dict[str, dict[str, object]] = {}
     volumes: set[str] = set()
@@ -361,6 +391,11 @@ def _compose_model(config: NormalizedConfig) -> dict[str, object]:
     if postgres is not None:
         services[POSTGRES_SERVICE_NAME] = postgres
         volumes.add(POSTGRES_DATA_VOLUME)
+
+    redis = _redis_service(config)
+    if redis is not None:
+        services["redis"] = redis
+        volumes.add("redis-data")
 
     compose: dict[str, object] = {
         "name": config.project.compose_name,

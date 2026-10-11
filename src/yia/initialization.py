@@ -222,7 +222,6 @@ def initialize_project(
     generation = generate_project(project)
     _assert_final_state(project)
 
-    postgres = project.config.services.postgres
     return InitializationResult(
         project=project.config.project.name,
         config_path=str(project.config_path),
@@ -234,7 +233,10 @@ def initialize_project(
             application.name for application in project.config.applications
         ),
         runtimes=project.config.runtime_names,
-        services=("postgres",) if postgres is not None else (),
+        services=tuple(
+            name for name in ("postgres", "redis")
+            if getattr(project.config.services, name) is not None
+        ),
         urls=tuple(
             sorted(
                 f"http://{application.web.hostname}"

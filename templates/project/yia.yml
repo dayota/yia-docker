@@ -12,4 +12,9 @@ services:
     version: "18"
     expose: false
 
+  # Service optionnel : nécessite REDIS_PASSWORD dans .env.
+  # redis:
+  #   version: "7.4"
+  #   expose: false
+
 applications: {}

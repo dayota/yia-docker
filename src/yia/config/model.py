@@ -41,8 +41,16 @@ class PostgresConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class RedisConfig:
+    name: str
+    version: str
+    expose: bool
+
+
+@dataclass(frozen=True, slots=True)
 class ServicesConfig:
     postgres: PostgresConfig | None
+    redis: RedisConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +167,13 @@ class NormalizedConfig:
 
     def to_dict(self) -> dict[str, Any]:
         services: dict[str, Any] = {}
+        if self.services.redis is not None:
+            services["redis"] = {
+                "name": self.services.redis.name,
+                "enabled": True,
+                "version": self.services.redis.version,
+                "expose": self.services.redis.expose,
+            }
         if self.services.postgres is not None:
             services["postgres"] = {
                 "name": self.services.postgres.name,
